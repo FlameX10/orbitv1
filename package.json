@@ -1,0 +1,15 @@
+{
+  "name": "ai-voice-lead-qualification-platform",
+  "version": "1.0.0",
+  "description": "AI Lead Qualification & Autonomous Voice Calling Platform",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "worker": "npm --prefix backend run worker",
+    "test:backend": "npm --prefix backend test",
+    "prisma:generate": "npm --prefix backend run prisma:generate",
+    "prisma:push": "npm --prefix backend run prisma:push",
+    "docker:up": "docker-compose up --build",
+    "docker:down": "docker-compose down"
+  }
+}

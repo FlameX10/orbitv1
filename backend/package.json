@@ -1,0 +1,40 @@
+{
+  "name": "ai-voice-agent-backend",
+  "version": "1.0.0",
+  "description": "Backend service for AI Lead Qualification & Autonomous Voice Calling Platform",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "worker": "node src/workers/workerRunner.js",
+    "prisma:generate": "npx prisma generate",
+    "prisma:migrate": "npx prisma migrate dev",
+    "prisma:push": "npx prisma db push",
+    "db:seed": "node prisma/seed.js",
+    "test": "npx vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.3.1",
+    "axios": "^1.7.9",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1",
+    "pg-boss": "^10.1.3",
+    "prisma": "^6.3.1",
+    "socket.io": "^4.8.1",
+    "twilio": "^5.4.3",
+    "ws": "^8.18.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9",
+    "vitest": "^3.0.5"
+  }
+}
