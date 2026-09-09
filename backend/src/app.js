@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const errorHandler = require('./middleware/error.middleware');
 const { apiLimiter } = require('./middleware/rateLimiter.middleware');
+const env = require('./config/env');
 
 const authRoutes = require('./routes/auth.routes');
 const leadRoutes = require('./routes/lead.routes');
@@ -28,7 +29,26 @@ app.use((req, res, next) => {
 
 // Security and CORS middleware
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: '*', credentials: true }));
+
+const allowedOrigins = [
+  env.frontendUrl,
+  'http://localhost:3000',
+  'http://localhost:5173'
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.some(o => o === '*' || origin.startsWith(o) || origin === o.replace(/\/$/, ''))) {
+      return callback(null, true);
+    }
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || origin.endsWith('.onrender.com') || origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
 
 // Body parsers
 app.use(express.json({

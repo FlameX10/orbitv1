@@ -14,8 +14,13 @@ async function initQueue() {
   if (bossInstance) return bossInstance;
 
   try {
+    const isSupabase = env.databaseUrl.includes('supabase.co') || env.databaseUrl.includes('supabase.com');
+    const cleanConnectionString = isSupabase
+      ? env.databaseUrl.replace(/([?&])sslmode=[^&]+(&|$)/, '$1').replace(/[?&]$/, '')
+      : env.databaseUrl;
     const boss = new PgBoss({
-      connectionString: env.databaseUrl,
+      connectionString: cleanConnectionString,
+      ...(isSupabase ? { ssl: { rejectUnauthorized: false } } : {}),
       max: 10,
       application_name: 'ai-voice-agent-worker'
     });

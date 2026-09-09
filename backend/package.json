@@ -4,6 +4,7 @@
   "description": "Backend service for AI Lead Qualification & Autonomous Voice Calling Platform",
   "main": "src/server.js",
   "scripts": {
+    "build": "prisma generate",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "worker": "node src/workers/workerRunner.js",
