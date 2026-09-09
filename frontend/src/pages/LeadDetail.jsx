@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Phone, Calendar, CheckCircle2, User, Building, Mail, Clock, FileText } from 'lucide-react';
 import QualificationBadge from '../components/QualificationBadge';
 import TranscriptViewer from '../components/TranscriptViewer';
+import ProviderUsagePanel from '../components/ProviderUsagePanel';
 import api from '../services/api';
 
 export default function LeadDetail() {
@@ -195,6 +196,8 @@ export default function LeadDetail() {
           ) : (
             <TranscriptViewer messages={selectedCall?.messages || []} />
           )}
+
+          {selectedCall && <div className="mt-6"><ProviderUsagePanel call={selectedCall} /></div>}
         </div>
       </div>
     </div>

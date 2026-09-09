@@ -469,3 +469,7 @@ Never change PORT=5000 just because the public URL changes.
 Do not hardcode the temporary Cloudflare URL in application source code.
 leadId is owned by the backend and should be passed to ElevenLabs as a dynamic variable.
 The LLM should extract timeText, timezone, and reason; it should not generate or infer leadId.
+
+
+
+for the transcript storage we created the new webhook in the elevenLabs with transcript and audio permissions and add that secrete in the tool call 

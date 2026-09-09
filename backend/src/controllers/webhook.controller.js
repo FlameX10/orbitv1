@@ -234,6 +234,8 @@ class WebhookController {
       const data = payload.data || payload;
       const conversationId = data.conversation_id || data.conversationId;
       const transcript = data.transcript || data.transcript_entries || [];
+      const providerMetadata = data.metadata || {};
+      const providerAnalysis = data.analysis || {};
 
       logger.info('ElevenLabs transcript webhook received', {
         type: payload.type,
@@ -319,6 +321,37 @@ class WebhookController {
           });
           stored += 1;
         }
+      }
+
+      const providerSummary = providerAnalysis.transcript_summary || providerAnalysis.summary;
+      const providerDuration = Number(providerMetadata.call_duration_secs);
+      const elevenLabsMetadata = {
+        source: 'elevenlabs',
+        eventTimestamp: payload.event_timestamp || null,
+        agentId: data.agent_id || null,
+        agentName: data.agent_name || null,
+        status: data.status || null,
+        metadata: providerMetadata,
+        analysis: providerAnalysis,
+        conversationInitiationClientData: data.conversation_initiation_client_data || null
+      };
+
+      await prisma.callAttempt.update({
+        where: { id: attempt.id },
+        data: {
+          elevenLabsMetadata,
+          summary: providerSummary || attempt.summary,
+          status: 'COMPLETED',
+          endedAt: attempt.endedAt || new Date(),
+          duration: Number.isFinite(providerDuration) ? Math.round(providerDuration) : attempt.duration
+        }
+      });
+
+      if (!['DO_NOT_CALL', 'QUALIFIED', 'NOT_QUALIFIED'].includes(attempt.status)) {
+        await prisma.lead.update({
+          where: { id: attempt.leadId },
+          data: { status: 'COMPLETED' }
+        });
       }
 
       broadcastEvent('transcript_update', {

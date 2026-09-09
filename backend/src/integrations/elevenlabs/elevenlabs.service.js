@@ -104,6 +104,23 @@ class ElevenLabsService {
     }
   }
 
+  async getConversationDetails(conversationId) {
+    if (!conversationId || !this.apiKey || this.apiKey.startsWith('MOCK')) return null;
+
+    try {
+      const response = await axios.get(`${this.baseUrl}/convai/conversations/${encodeURIComponent(conversationId)}`, {
+        headers: { 'xi-api-key': this.apiKey }
+      });
+      return response.data;
+    } catch (err) {
+      logger.warn('Failed to fetch ElevenLabs conversation details', {
+        conversationId,
+        error: err.response?.data?.detail || err.message
+      });
+      return null;
+    }
+  }
+
   /**
    * Helper to fetch synthesized TTS audio buffer
    */

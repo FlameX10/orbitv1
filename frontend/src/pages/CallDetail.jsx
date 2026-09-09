@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, PhoneCall, Clock, Bot, User, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle2, Coins, DollarSign, Gauge, MessageSquare, Timer } from 'lucide-react';
 import TranscriptViewer from '../components/TranscriptViewer';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
@@ -41,6 +41,20 @@ export default function CallDetail() {
   if (loading) return <div className="p-8 text-cyan-400 font-mono">Loading call record...</div>;
   if (!call) return <div className="p-8 text-rose-400">Call record not found.</div>;
 
+  const provider = call.elevenLabsMetadata || {};
+  const providerMetadata = provider.metadata || {};
+  const providerAnalysis = provider.analysis || {};
+  const charging = providerMetadata.charging || {};
+  const providerSummary = call.summary || providerAnalysis.transcript_summary || providerAnalysis.summary;
+  const credits = providerMetadata.cost ?? providerMetadata.credits;
+  const llmCredits = charging.llm_charge ?? providerMetadata.llm_charge ?? providerMetadata.llm_credits;
+  const llmCost = charging.llm_price ?? providerMetadata.llm_price;
+  const totalCost = providerMetadata.cost_fiat ?? providerMetadata.cost_usd ?? providerMetadata.total_cost_usd;
+  const providerDuration = providerMetadata.call_duration_secs ?? call.duration;
+  const terminationReason = providerMetadata.termination_reason || providerMetadata.terminationReason;
+
+  const formatValue = (value, suffix = '') => value === null || value === undefined || value === '' ? 'Not available' : `${value}${suffix}`;
+
   return (
     <div className="space-y-6">
       <Link to="/calls" className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-cyan-400">
@@ -78,9 +92,25 @@ export default function CallDetail() {
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               AI Call Summary
             </h3>
-            <p className="text-xs text-slate-300 italic leading-relaxed">
-              {call.summary || call.qualificationResult?.summary || 'No summary generated yet.'}
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {providerSummary || call.qualificationResult?.summary || 'No summary generated yet.'}
             </p>
+          </div>
+
+          <div className="glass-card p-6 rounded-2xl border border-slate-800">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-white">ElevenLabs Usage</h3>
+              <span className="text-[10px] uppercase tracking-wider text-slate-500">Provider data</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <UsageMetric icon={Coins} label="Credits" value={formatValue(credits)} />
+              <UsageMetric icon={Coins} label="LLM credits" value={formatValue(llmCredits)} />
+              <UsageMetric icon={DollarSign} label="LLM cost" value={formatValue(llmCost, llmCost !== undefined ? ' USD' : '')} />
+              <UsageMetric icon={DollarSign} label="Total cost" value={formatValue(totalCost, totalCost !== undefined ? ' USD' : '')} />
+              <UsageMetric icon={Timer} label="Provider duration" value={formatValue(providerDuration, 's')} />
+              <UsageMetric icon={MessageSquare} label="Messages" value={call.messages?.length || 0} />
+              <UsageMetric icon={Gauge} label="End reason" value={formatValue(terminationReason)} />
+            </div>
           </div>
 
           <div className="glass-card p-6 rounded-2xl border border-slate-800 text-xs space-y-2">
@@ -100,6 +130,18 @@ export default function CallDetail() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function UsageMetric({ icon: Icon, label, value }) {
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-slate-500">
+        <Icon className="w-3.5 h-3.5 text-cyan-400" />
+        {label}
+      </div>
+      <div className="mt-1 text-xs font-semibold text-slate-200 break-words">{value}</div>
     </div>
   );
 }

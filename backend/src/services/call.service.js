@@ -2,6 +2,7 @@ const prisma = require('../config/prisma');
 const env = require('../config/env');
 const logger = require('../config/logger');
 const twilioService = require('../integrations/twilio/twilio.service');
+const elevenLabsService = require('../integrations/elevenlabs/elevenlabs.service');
 const agentService = require('./agent.service');
 
 class CallService {
@@ -255,7 +256,7 @@ class CallService {
   }
 
   async getCallById(id) {
-    return await prisma.callAttempt.findUnique({
+    let attempt = await prisma.callAttempt.findUnique({
       where: { id },
       include: {
         lead: true,
@@ -265,6 +266,69 @@ class CallService {
         callbacks: true
       }
     });
+
+    if (!attempt) return null;
+
+    if (attempt.elevenLabsSessionId && !attempt.elevenLabsMetadata) {
+      const conversation = await elevenLabsService.getConversationDetails(attempt.elevenLabsSessionId);
+      if (conversation) {
+        const providerMetadata = conversation.metadata || {};
+        const providerAnalysis = conversation.analysis || {};
+        const transcript = Array.isArray(conversation.transcript) ? conversation.transcript : [];
+
+        for (const [index, entry] of transcript.entries()) {
+          const content = entry.message || entry.content || entry.text;
+          if (!content) continue;
+
+          const role = String(entry.role || entry.speaker || '').toLowerCase();
+          const messageRole = role === 'user' || role === 'human' ? 'HUMAN' : 'AI';
+          const duplicate = await prisma.conversationMessage.findFirst({
+            where: { callAttemptId: attempt.id, role: messageRole, content }
+          });
+
+          if (!duplicate) {
+            await prisma.conversationMessage.create({
+              data: {
+                callAttemptId: attempt.id,
+                role: messageRole,
+                content,
+                metadata: {
+                  source: 'elevenlabs-api',
+                  conversationId: attempt.elevenLabsSessionId,
+                  transcriptIndex: index,
+                  timeInCallSecs: entry.time_in_call_secs ?? null
+                }
+              }
+            });
+          }
+        }
+
+        await prisma.callAttempt.update({
+          where: { id: attempt.id },
+          data: {
+            elevenLabsMetadata: conversation,
+            summary: providerAnalysis.transcript_summary || attempt.summary,
+            duration: Number.isFinite(Number(providerMetadata.call_duration_secs))
+              ? Number(providerMetadata.call_duration_secs)
+              : attempt.duration,
+            status: conversation.status === 'done' ? 'COMPLETED' : attempt.status
+          }
+        });
+
+        attempt = await prisma.callAttempt.findUnique({
+          where: { id },
+          include: {
+            lead: true,
+            agent: true,
+            messages: { orderBy: { timestamp: 'asc' } },
+            qualificationResult: true,
+            callbacks: true
+          }
+        });
+      }
+    }
+
+    return attempt;
   }
 
   async listCalls({ page = 1, limit = 20, status }) {
