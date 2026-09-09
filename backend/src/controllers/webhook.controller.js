@@ -10,6 +10,11 @@ const { scheduleJob, JOB_QUEUES } = require('../config/queue');
 const crypto = require('crypto');
 
 class WebhookController {
+  constructor() {
+    this.handleElevenLabsCallback = this.handleElevenLabsCallback.bind(this);
+    this.handleElevenLabsTranscript = this.handleElevenLabsTranscript.bind(this);
+  }
+
   /**
    * Twilio Initial Voice Connect Webhook (Generates TwiML)
    */
@@ -169,12 +174,12 @@ class WebhookController {
     const payload = req.body || {};
 
     try {
-      if (payload.type === 'post_call_transcription') {
-        return this.handleElevenLabsTranscript(req, res);
-      }
-
       if (!this.isValidElevenLabsSignature(req)) {
         return res.status(401).json({ success: false, error: 'Invalid webhook signature' });
+      }
+
+      if (payload.type === 'post_call_transcription') {
+        return this.handleElevenLabsTranscript(req, res);
       }
 
       const callbackData = payload.data || payload.parameters || payload.arguments || payload;
@@ -226,26 +231,71 @@ class WebhookController {
   async handleElevenLabsTranscript(req, res) {
     const payload = req.body || {};
     try {
-      if (!this.isValidElevenLabsSignature(req)) {
-        return res.status(401).json({ success: false, error: 'Invalid webhook signature' });
-      }
-
       const data = payload.data || payload;
       const conversationId = data.conversation_id || data.conversationId;
       const transcript = data.transcript || data.transcript_entries || [];
+
+      logger.info('ElevenLabs transcript webhook received', {
+        type: payload.type,
+        conversationId,
+        transcriptEntries: Array.isArray(transcript) ? transcript.length : null,
+        hasSignature: Boolean(req.get('elevenlabs-signature')),
+        hasSharedSecret: Boolean(req.get('x-elevenlabs-webhook-secret'))
+      });
+
+      if (!this.isValidElevenLabsSignature(req)) {
+        logger.warn('ElevenLabs transcript webhook rejected: invalid signature', { conversationId });
+        return res.status(401).json({ success: false, error: 'Invalid webhook signature' });
+      }
+
+      const dynamicVariables = data.dynamic_variables ||
+        data.conversation_initiation_client_data?.dynamic_variables ||
+        payload.dynamic_variables || {};
+      const leadId = schedulingService.resolveLeadId(
+        data.leadId,
+        data.lead_id,
+        data.user_id,
+        dynamicVariables.leadId,
+        dynamicVariables.lead_id,
+        payload.leadId,
+        payload.lead_id,
+        payload.user_id,
+        payload.dynamic_variables?.leadId
+      );
 
       if (!conversationId || !Array.isArray(transcript)) {
         return res.status(400).json({ success: false, error: 'conversation_id and transcript are required' });
       }
 
-      const attempt = await prisma.callAttempt.findFirst({
+      let attempt = await prisma.callAttempt.findFirst({
         where: { elevenLabsSessionId: conversationId }
       });
 
+      if (!attempt && leadId) {
+        attempt = await prisma.callAttempt.findFirst({
+          where: { leadId },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        if (attempt && !attempt.elevenLabsSessionId) {
+          attempt = await prisma.callAttempt.update({
+            where: { id: attempt.id },
+            data: { elevenLabsSessionId: conversationId }
+          });
+        }
+      }
+
       if (!attempt) {
-        logger.warn(`No call attempt found for ElevenLabs conversation [${conversationId}]`);
+        logger.warn(`No call attempt found for ElevenLabs conversation [${conversationId}]`, { leadId });
         return res.status(202).json({ success: true, matched: false });
       }
+
+      logger.info('ElevenLabs transcript matched call attempt', {
+        conversationId,
+        callAttemptId: attempt.id,
+        leadId: attempt.leadId,
+        transcriptEntries: transcript.length
+      });
 
       let stored = 0;
       for (const entry of transcript) {
@@ -277,6 +327,12 @@ class WebhookController {
         storedMessages: stored
       });
 
+      logger.info('ElevenLabs transcript stored', {
+        conversationId,
+        callAttemptId: attempt.id,
+        storedMessages: stored
+      });
+
       return res.json({ success: true, matched: true, storedMessages: stored });
     } catch (err) {
       logger.error('ElevenLabs transcript webhook failed', { error: err.message });
@@ -285,18 +341,27 @@ class WebhookController {
   }
 
   isValidElevenLabsSignature(req) {
-    const secret = process.env.ELEVENLABS_WEBHOOK_SECRET;
+    const secret = String(process.env.ELEVENLABS_WEBHOOK_SECRET || '').trim();
     if (!secret) return true;
     if (req.get('x-elevenlabs-webhook-secret') === secret) return true;
 
-    const signature = req.get('elevenlabs-signature');
-    if (!signature || !req.rawBody) return false;
+    const signature = req.get('elevenlabs-signature') || '';
+    const rawBody = typeof req.rawBody === 'string' ? req.rawBody : '';
+    if (!signature || !rawBody) return false;
 
-    const parts = Object.fromEntries(signature.split(',').map((part) => {
-      const separator = part.indexOf('=');
-      return [part.slice(0, separator), part.slice(separator + 1)];
-    }));
+    const parts = Object.fromEntries(
+      signature.split(',').map((part) => {
+        const separator = part.indexOf('=');
+        return separator === -1
+          ? [part.trim(), '']
+          : [part.slice(0, separator).trim(), part.slice(separator + 1).trim()];
+      })
+    );
     if (!parts.t || !parts.v0) return false;
+
+    const timestamp = Number(parts.t);
+    const maxAgeSeconds = 5 * 60;
+    if (!Number.isFinite(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > maxAgeSeconds) return false;
 
     const signedPayload = `${parts.t}.${req.rawBody}`;
     const expected = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex');

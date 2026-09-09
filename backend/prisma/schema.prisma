@@ -142,7 +142,8 @@ model CallAttempt {
   agent               AgentConfig?         @relation(fields: [agentId], references: [id])
   attemptNumber       Int                  @default(1)
   twilioCallSid       String?              @unique
-  elevenLabsSessionId String?
+  elevenLabsSessionId String?              @unique
+  elevenLabsMetadata  Json?
   status              CallStatus           @default(QUEUED)
   reason              String?              @default("new_lead")
   startedAt           DateTime?

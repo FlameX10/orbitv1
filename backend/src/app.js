@@ -16,6 +16,16 @@ const webhookController = require('./controllers/webhook.controller');
 
 const app = express();
 
+app.use((req, res, next) => {
+  const startedAt = Date.now();
+  res.on('finish', () => {
+    if (req.path.startsWith('/api/webhooks')) {
+      console.log(`[HTTP] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${Date.now() - startedAt}ms)`);
+    }
+  });
+  next();
+});
+
 // Security and CORS middleware
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: '*', credentials: true }));
