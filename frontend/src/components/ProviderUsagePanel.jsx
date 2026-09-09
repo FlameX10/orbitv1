@@ -20,7 +20,7 @@ function UsageMetric({ icon: Icon, label, value }) {
 export default function ProviderUsagePanel({ call }) {
   const provider = call?.elevenLabsMetadata || {};
   const metadata = provider.metadata || {};
-  const charging = metadata.charging || {};
+  const charging = provider.charging || metadata.charging || {};
   const analysis = provider.analysis || {};
   const summary = call?.summary || analysis.transcript_summary || analysis.summary;
   const credits = metadata.cost ?? metadata.credits;
@@ -28,7 +28,7 @@ export default function ProviderUsagePanel({ call }) {
   const llmCost = charging.llm_price ?? metadata.llm_price;
   const totalCost = metadata.cost_fiat ?? metadata.cost_usd ?? metadata.total_cost_usd;
   const duration = metadata.call_duration_secs ?? call?.duration;
-  const terminationReason = metadata.termination_reason || metadata.terminationReason;
+  const terminationReason = provider.terminationReason || metadata.termination_reason || metadata.terminationReason;
 
   return (
     <div className="glass-card p-6 rounded-2xl border border-slate-800">

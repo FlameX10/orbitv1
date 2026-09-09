@@ -1,6 +1,118 @@
 const prisma = require('../config/prisma');
+const elevenLabsService = require('../integrations/elevenlabs/elevenlabs.service');
 
 class AnalyticsService {
+  async getActualCosting() {
+    const calls = await prisma.callAttempt.findMany({
+      where: { duration: { not: null } },
+      select: {
+        id: true,
+        duration: true,
+        status: true,
+        elevenLabsSessionId: true,
+        elevenLabsMetadata: true,
+        lead: {
+          select: { id: true, firstName: true, lastName: true, email: true, company: true }
+        }
+      }
+    });
+
+    const enrichedCalls = await Promise.all(calls.map(async (call) => {
+      const cachedProvider = call.elevenLabsMetadata || {};
+      const cachedMetadata = cachedProvider.metadata || {};
+      const hasProviderBilling = (cachedMetadata.cost !== undefined || cachedMetadata.cost_fiat !== undefined) &&
+        (cachedProvider.charging?.llm_charge !== undefined || cachedProvider.charging?.llm_price !== undefined);
+
+      if (call.elevenLabsSessionId && !hasProviderBilling) {
+        const conversation = await elevenLabsService.getConversationDetails(call.elevenLabsSessionId);
+        if (conversation) {
+          call.elevenLabsMetadata = conversation;
+          await prisma.callAttempt.update({
+            where: { id: call.id },
+            data: { elevenLabsMetadata: conversation }
+          });
+        }
+      }
+
+      return call;
+    }));
+
+    const totals = enrichedCalls.reduce((result, call) => {
+      const provider = call.elevenLabsMetadata || {};
+      const metadata = provider.metadata || {};
+      const charging = provider.charging || metadata.charging || {};
+      const duration = Number(call.duration) || 0;
+      const elevenLabsCredits = Number(metadata.cost);
+      const elevenLabsCost = Number(metadata.cost_fiat);
+      const llmCredits = Number(charging.llm_charge ?? metadata.llm_charge);
+      const llmCost = Number(charging.llm_price ?? metadata.llm_price);
+
+      result.calls += 1;
+      result.minutes += duration / 60;
+      if (Number.isFinite(elevenLabsCredits)) result.elevenLabsCredits += elevenLabsCredits;
+      if (Number.isFinite(elevenLabsCost)) result.elevenLabsCost += elevenLabsCost;
+      if (Number.isFinite(llmCredits)) result.llmCredits += llmCredits;
+      if (Number.isFinite(llmCost)) result.llmCost += llmCost;
+      return result;
+    }, {
+      calls: 0,
+      minutes: 0,
+      elevenLabsCredits: 0,
+      elevenLabsCost: 0,
+      llmCredits: 0,
+      llmCost: 0
+    });
+
+    const configuredCostCalls = enrichedCalls.filter((call) => {
+      const metadata = call.elevenLabsMetadata?.metadata || {};
+      return Number.isFinite(Number(metadata.cost_fiat));
+    }).length;
+
+    const users = Object.values(enrichedCalls.reduce((result, call) => {
+      const key = call.lead.id;
+      const current = result[key] || {
+        id: call.lead.id,
+        name: [call.lead.firstName, call.lead.lastName].filter(Boolean).join(' '),
+        email: call.lead.email,
+        company: call.lead.company,
+        calls: 0,
+        minutes: 0,
+        elevenLabsCredits: 0,
+        providerCost: 0,
+        llmCost: 0
+      };
+      const provider = call.elevenLabsMetadata || {};
+      const metadata = provider.metadata || {};
+      const charging = provider.charging || metadata.charging || {};
+      current.calls += 1;
+      current.minutes += (Number(call.duration) || 0) / 60;
+      current.elevenLabsCredits += Number(metadata.cost) || 0;
+      current.providerCost += (Number(metadata.cost_fiat) || 0) + (Number(charging.llm_price) || 0);
+      current.llmCost += Number(charging.llm_price) || 0;
+      result[key] = current;
+      return result;
+    }, {})).map((user) => ({
+      ...user,
+      minutes: Number(user.minutes.toFixed(2)),
+      elevenLabsCredits: Number(user.elevenLabsCredits.toFixed(2)),
+      providerCost: Number(user.providerCost.toFixed(4)),
+      llmCost: Number(user.llmCost.toFixed(4))
+    })).sort((left, right) => right.providerCost - left.providerCost);
+
+    return {
+      ...totals,
+      providerCost: Number((totals.elevenLabsCost + totals.llmCost).toFixed(4)),
+      minutes: Number(totals.minutes.toFixed(2)),
+      elevenLabsCredits: Number(totals.elevenLabsCredits.toFixed(2)),
+      elevenLabsCost: Number(totals.elevenLabsCost.toFixed(4)),
+      llmCredits: Number(totals.llmCredits.toFixed(2)),
+      llmCost: Number(totals.llmCost.toFixed(4)),
+      configuredCostCalls,
+      dataCoverage: enrichedCalls.length > 0 ? Number(((configuredCostCalls / enrichedCalls.length) * 100).toFixed(1)) : 0,
+      users
+    };
+  }
+
   async getDashboardOverview() {
     const [
       totalLeads,

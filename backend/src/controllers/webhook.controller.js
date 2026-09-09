@@ -235,6 +235,7 @@ class WebhookController {
       const conversationId = data.conversation_id || data.conversationId;
       const transcript = data.transcript || data.transcript_entries || [];
       const providerMetadata = data.metadata || {};
+      const providerCharging = data.charging || {};
       const providerAnalysis = data.analysis || {};
 
       logger.info('ElevenLabs transcript webhook received', {
@@ -332,6 +333,8 @@ class WebhookController {
         agentName: data.agent_name || null,
         status: data.status || null,
         metadata: providerMetadata,
+        charging: providerCharging,
+        terminationReason: data.termination_reason || null,
         analysis: providerAnalysis,
         conversationInitiationClientData: data.conversation_initiation_client_data || null
       };

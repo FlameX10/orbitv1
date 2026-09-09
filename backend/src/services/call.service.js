@@ -269,7 +269,12 @@ class CallService {
 
     if (!attempt) return null;
 
-    if (attempt.elevenLabsSessionId && !attempt.elevenLabsMetadata) {
+    const cachedProvider = attempt.elevenLabsMetadata || {};
+    const cachedMetadata = cachedProvider.metadata || {};
+    const hasProviderBilling = (cachedMetadata.cost !== undefined || cachedMetadata.cost_fiat !== undefined) &&
+      (cachedProvider.charging?.llm_charge !== undefined || cachedProvider.charging?.llm_price !== undefined);
+
+    if (attempt.elevenLabsSessionId && !hasProviderBilling) {
       const conversation = await elevenLabsService.getConversationDetails(attempt.elevenLabsSessionId);
       if (conversation) {
         const providerMetadata = conversation.metadata || {};

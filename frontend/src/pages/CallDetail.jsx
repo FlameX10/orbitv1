@@ -44,14 +44,14 @@ export default function CallDetail() {
   const provider = call.elevenLabsMetadata || {};
   const providerMetadata = provider.metadata || {};
   const providerAnalysis = provider.analysis || {};
-  const charging = providerMetadata.charging || {};
+  const charging = provider.charging || providerMetadata.charging || {};
   const providerSummary = call.summary || providerAnalysis.transcript_summary || providerAnalysis.summary;
   const credits = providerMetadata.cost ?? providerMetadata.credits;
   const llmCredits = charging.llm_charge ?? providerMetadata.llm_charge ?? providerMetadata.llm_credits;
   const llmCost = charging.llm_price ?? providerMetadata.llm_price;
   const totalCost = providerMetadata.cost_fiat ?? providerMetadata.cost_usd ?? providerMetadata.total_cost_usd;
   const providerDuration = providerMetadata.call_duration_secs ?? call.duration;
-  const terminationReason = providerMetadata.termination_reason || providerMetadata.terminationReason;
+  const terminationReason = provider.terminationReason || providerMetadata.termination_reason || providerMetadata.terminationReason;
 
   const formatValue = (value, suffix = '') => value === null || value === undefined || value === '' ? 'Not available' : `${value}${suffix}`;
 
