@@ -9,7 +9,7 @@ export function SocketProvider({ children }) {
   const [lastEvent, setLastEvent] = useState(null);
 
   useEffect(() => {
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+    const backendUrl = import.meta.env.VITE_BACKEND_URL?.trim().replace(/\/+$/, '') || 'http://localhost:5000';
     const socketIo = io(backendUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,

@@ -7,6 +7,12 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 3000,
+    // Add a temporary tunnel hostname only when the frontend itself is
+    // exposed through Cloudflare. Provider webhooks should target the backend.
+    allowedHosts: (process.env.VITE_ALLOWED_HOSTS || '')
+      .split(',')
+      .map((host) => host.trim())
+      .filter(Boolean),
     proxy: {
       '/api': {
         target: 'http://localhost:5000',

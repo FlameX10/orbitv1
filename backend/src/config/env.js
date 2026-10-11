@@ -7,6 +7,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const nodeEnv = process.env.NODE_ENV || 'development';
 const plivoWebhookSecret = (process.env.PLIVO_WEBHOOK_SECRET || '').trim();
+const publicBaseUrl = (process.env.PUBLIC_BASE_URL || '').trim().replace(/\/+$/, '');
 
 if (nodeEnv === 'production') {
   if (!plivoWebhookSecret || plivoWebhookSecret === 'replace_with_a_strong_random_secret') {
@@ -17,13 +18,14 @@ if (nodeEnv === 'production') {
 module.exports = {
   nodeEnv,
   port: parseInt(process.env.PORT || '5000', 10),
+  publicBaseUrl,
   databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/voiceagent_db?schema=public',
   
   twilio: {
     accountSid: process.env.TWILIO_ACCOUNT_SID || 'AC_MOCK_SID',
     authToken: process.env.TWILIO_AUTH_TOKEN || 'MOCK_TOKEN',
     phoneNumber: process.env.TWILIO_PHONE_NUMBER || '+15005550006',
-    webhookBaseUrl: process.env.TWILIO_WEBHOOK_BASE_URL || 'http://localhost:5000'
+    webhookBaseUrl: process.env.TWILIO_WEBHOOK_BASE_URL || publicBaseUrl || 'http://localhost:5000'
   },
 
   plivo: {
@@ -46,7 +48,8 @@ module.exports = {
     apiKey: process.env.ELEVENLABS_API_KEY || 'MOCK_ELEVENLABS_KEY',
     agentId: process.env.ELEVENLABS_AGENT_ID || 'MOCK_AGENT_ID',
     phoneNumberId: process.env.ELEVENLABS_PHONE_NUMBER_ID || 'phnum_8101m4d7q0cpfn3tfwgtg53cndew',
-    callbackUrl: process.env.ELEVENLABS_CALLBACK_URL || '/api/webhooks/elevenlabs/callback',
+    callbackUrl: process.env.ELEVENLABS_CALLBACK_URL ||
+      (publicBaseUrl ? `${publicBaseUrl}/api/webhooks/elevenlabs/callback` : '/api/webhooks/elevenlabs/callback'),
     webhookSecret: process.env.ELEVENLABS_WEBHOOK_SECRET || ''
   },
   

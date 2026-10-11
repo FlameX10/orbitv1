@@ -178,13 +178,48 @@ npm test
 
 
 
+## Public URL configuration
 
+The backend is the public webhook service. Do not configure Plivo or ElevenLabs
+to call the Vite frontend URL.
 
+For local Cloudflare testing, start the tunnel against the backend:
 
+```powershell
+cloudflared tunnel --url http://localhost:5000
+```
 
+Set the generated URL in the backend environment and restart the backend:
 
+```env
+PUBLIC_BASE_URL=https://<random-name>.trycloudflare.com
+```
 
+Configure Plivo's callback/custom-tool URL as:
 
+```text
+https://<random-name>.trycloudflare.com/api/webhooks/plivo/callback
+```
+
+The same backend base URL should be used for the other provider webhook paths.
+The Plivo webhook secret must also be sent using the configured authentication
+header/query parameter.
+
+If the frontend is hosted separately, set its build environment variable to the
+backend origin (without `/api`):
+
+```env
+VITE_BACKEND_URL=https://<backend-service>.onrender.com
+```
+
+When the frontend runs locally without `VITE_BACKEND_URL`, it continues using
+the Vite `/api` proxy to `http://localhost:5000`. `VITE_ALLOWED_HOSTS` is only
+needed when the frontend itself is exposed through a tunnel.
+
+For Render, set `PUBLIC_BASE_URL` on the backend service to its permanent
+`https://<backend-service>.onrender.com` URL and set `VITE_BACKEND_URL` on the
+frontend service to that same backend origin. Update Plivo once to the Render
+callback URL; do not put a temporary Cloudflare URL in source code.
 
 1. Start the Backend
 
