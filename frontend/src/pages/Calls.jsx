@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { PhoneCall, Clock, FileText, Filter } from 'lucide-react';
 import api from '../services/api';
 import { Link } from 'react-router-dom';
+import { useSocket } from '../context/SocketContext';
 
 export default function Calls() {
   const [calls, setCalls] = useState([]);
@@ -9,6 +10,7 @@ export default function Calls() {
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ totalPages: 1 });
+  const { lastEvent } = useSocket();
 
   const fetchCalls = async () => {
     setLoading(true);
@@ -28,6 +30,11 @@ export default function Calls() {
   useEffect(() => {
     fetchCalls();
   }, [page, statusFilter]);
+
+  useEffect(() => {
+    if (!lastEvent || lastEvent.name !== 'call_status_change') return;
+    fetchCalls();
+  }, [lastEvent]);
 
   return (
     <div className="space-y-6">
@@ -59,7 +66,8 @@ export default function Calls() {
           <thead className="bg-slate-900 text-xs font-semibold text-slate-400 uppercase tracking-wider">
             <tr>
               <th className="p-4">Lead Name & Phone</th>
-              <th className="p-4">Twilio Call SID</th>
+              <th className="p-4">Plivo Call UUID</th>
+              <th className="p-4">Region</th>
               <th className="p-4">Attempt #</th>
               <th className="p-4">Status</th>
               <th className="p-4">Duration</th>
@@ -70,13 +78,13 @@ export default function Calls() {
           <tbody className="divide-y divide-slate-800/60">
             {loading ? (
               <tr>
-                <td colSpan="7" className="p-8 text-center text-slate-500 font-mono">
+                <td colSpan="8" className="p-8 text-center text-slate-500 font-mono">
                   Loading call logs...
                 </td>
               </tr>
             ) : calls.length === 0 ? (
               <tr>
-                <td colSpan="7" className="p-8 text-center text-slate-500">
+                <td colSpan="8" className="p-8 text-center text-slate-500">
                   No call logs recorded yet.
                 </td>
               </tr>
@@ -89,7 +97,14 @@ export default function Calls() {
                     </div>
                     <div className="text-xs font-mono text-cyan-400">{call.lead?.phone}</div>
                   </td>
-                  <td className="p-4 font-mono text-xs text-slate-400">{call.twilioCallSid || 'CA_MOCK_SIMULATED'}</td>
+                  <td className="p-4 font-mono text-xs text-slate-400">{call.plivoCallUuid || call.twilioCallSid || 'PLIVO_MOCK'}</td>
+                  <td className="p-4">
+                    <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold ${
+                      call.plivoRegion === 'IN' ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-indigo-950 text-indigo-300 border border-indigo-800'
+                    }`}>
+                      {call.plivoRegion || 'US'}
+                    </span>
+                  </td>
                   <td className="p-4 font-mono font-bold text-white">#{call.attemptNumber}</td>
                   <td className="p-4">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${

@@ -38,8 +38,26 @@ export default function CallDetail() {
       .catch((err) => console.error('Failed to refresh call detail:', err));
   }, [id, lastEvent]);
 
+  const [ending, setEnding] = useState(false);
+
+  const handleEndCall = async () => {
+    try {
+      setEnding(true);
+      const res = await api.post(`/calls/${id}/end`);
+      if (res.success && res.data) {
+        setCall(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to end call:', err);
+    } finally {
+      setEnding(false);
+    }
+  };
+
   if (loading) return <div className="p-8 text-cyan-400 font-mono">Loading call record...</div>;
   if (!call) return <div className="p-8 text-rose-400">Call record not found.</div>;
+
+  const isActive = ['QUEUED', 'INITIATING', 'RINGING', 'ANSWERED', 'IN_PROGRESS'].includes(call.status);
 
   return (
     <div className="space-y-6">
@@ -54,15 +72,31 @@ export default function CallDetail() {
             <span className="text-xs px-2.5 py-1 rounded-full font-mono bg-cyan-950 border border-cyan-800 text-cyan-300">
               {call.status}
             </span>
+            {call.plivoRegion && (
+              <span className={`text-xs px-2.5 py-1 rounded-full font-mono font-bold ${
+                call.plivoRegion === 'IN' ? 'bg-amber-950 border border-amber-700 text-amber-300' : 'bg-indigo-950 border border-indigo-700 text-indigo-300'
+              }`}>
+                Plivo {call.plivoRegion}
+              </span>
+            )}
           </h1>
           <p className="text-xs text-slate-400 font-mono mt-1">
-            Lead: {call.lead?.firstName} {call.lead?.lastName} ({call.lead?.phone}) | SID: {call.twilioCallSid || 'CA_MOCK'}
+            Lead: {call.lead?.firstName} {call.lead?.lastName} ({call.lead?.phone}) | Call UUID: {call.plivoCallUuid || call.twilioCallSid || 'PLIVO_MOCK'}
           </p>
         </div>
 
         <div className="flex items-center gap-4 text-xs font-mono text-slate-300">
           <div>Duration: <strong className="text-white">{call.duration || 0}s</strong></div>
           <div>Started: <strong className="text-white">{new Date(call.createdAt).toLocaleString()}</strong></div>
+          {isActive && (
+            <button
+              onClick={handleEndCall}
+              disabled={ending}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors shadow-lg shadow-rose-950/50"
+            >
+              {ending ? 'Ending...' : 'End Active Call'}
+            </button>
+          )}
         </div>
       </div>
 

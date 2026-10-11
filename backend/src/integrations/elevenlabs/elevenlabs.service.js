@@ -49,30 +49,62 @@ class ElevenLabsService {
     }
 
     try {
+      const payload = this.buildOutboundCallPayload({ to, leadId });
+      logger.info(`Initiating ElevenLabs Outbound SIP Call to [${to}] for Lead [${leadId}]`, {
+        agentId: this.agentId,
+        phoneNumberId: this.phoneNumberId
+      });
+
       const response = await axios.post(
-        `${this.baseUrl}/convai/twilio/outbound-call`,
-        this.buildOutboundCallPayload({ to, leadId }),
+        `${this.baseUrl}/convai/sip-trunk/outbound-call`,
+        payload,
         {
-        headers: {
-          'xi-api-key': this.apiKey,
-          'Content-Type': 'application/json'
-        }
+          headers: {
+            'xi-api-key': this.apiKey,
+            'Content-Type': 'application/json'
+          }
         }
       );
 
-      if (!response.data?.success || !response.data?.callSid) {
-        throw new Error(response.data?.message || 'ElevenLabs did not return a Twilio call SID');
+      const conversationId = response.data?.conversation_id || response.data?.call_id || response.data?.callSid || response.data?.id;
+      logger.info('ElevenLabs Outbound Call API Response:', {
+        conversationId,
+        responseData: response.data
+      });
+      if (!conversationId && response.data?.success === false) {
+        throw new Error(response.data?.message || 'ElevenLabs outbound call rejected');
       }
 
-      return response.data;
+      return {
+        success: true,
+        conversation_id: conversationId,
+        callSid: conversationId,
+        raw: response.data
+      };
     } catch (err) {
-      const providerMessage = err.response?.data?.detail || err.response?.data?.message;
+      const providerMessage = err.response?.data?.detail || err.response?.data?.message || err.response?.data?.error;
       logger.error('ElevenLabs outbound call initiation failed', {
         error: providerMessage || err.message,
         leadId,
         to
       });
       throw new Error(providerMessage || err.message);
+    }
+  }
+
+  /**
+   * Fetch conversation details by conversation_id from ElevenLabs
+   */
+  async getConversationDetails(conversationId) {
+    if (!this.apiKey || this.apiKey.startsWith('MOCK') || !conversationId) return null;
+    try {
+      const response = await axios.get(`${this.baseUrl}/convai/conversations/${conversationId}`, {
+        headers: { 'xi-api-key': this.apiKey }
+      });
+      return response.data;
+    } catch (err) {
+      logger.error('Failed to fetch ElevenLabs conversation details', { conversationId, error: err.message });
+      return null;
     }
   }
 

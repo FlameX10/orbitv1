@@ -48,6 +48,16 @@ class CallController {
       next(err);
     }
   }
+
+  async endCall(req, res, next) {
+    try {
+      const { id } = req.params;
+      const attempt = await callService.endActiveCall(id);
+      res.json({ success: true, message: 'Call termination requested', data: attempt });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new CallController();

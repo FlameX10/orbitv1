@@ -2,7 +2,10 @@ const prisma = require('../config/prisma');
 const env = require('../config/env');
 const logger = require('../config/logger');
 const twilioService = require('../integrations/twilio/twilio.service');
+const elevenLabsService = require('../integrations/elevenlabs/elevenlabs.service');
+const plivoService = require('../integrations/plivo/plivo.service');
 const agentService = require('./agent.service');
+const { broadcastEvent } = require('../websocket/socket.server');
 
 class CallService {
   /**
@@ -72,25 +75,31 @@ class CallService {
       data: { status: 'CALLING' }
     });
 
-    // 7. Trigger Twilio Call
+    // 7. Trigger Plivo Native AI Agent Outbound Call
     try {
-      const twilioResult = await twilioService.createOutboundCall({
+      const callResult = await plivoService.triggerOutboundAgentCall({
         to: lead.phone,
         leadId: lead.id,
-        callAttemptId: callAttempt.id
+        callAttemptId: callAttempt.id,
+        leadData: lead
       });
 
-      // Update callAttempt with Twilio Call SID
+      const callUuid = callResult.callUuid;
+
+      // Update callAttempt with Plivo Call UUID and Region metadata
       const updatedAttempt = await prisma.callAttempt.update({
         where: { id: callAttempt.id },
         data: {
-          twilioCallSid: twilioResult.sid,
-          elevenLabsSessionId: twilioResult.conversationId || null,
-          status: 'RINGING'
+          plivoCallUuid: callUuid,
+          plivoTriggerApiId: callResult.triggerApiId || null,
+          plivoFlowId: callResult.flowId || null,
+          plivoConversationId: callResult.conversationId || null,
+          plivoFlowRunUuid: callResult.flowRunUuid || null,
+          plivoRegion: callResult.region,
+          status: 'IN_PROGRESS',
+          answeredAt: new Date()
         }
       });
-
-      this.monitorProviderCall(callAttempt.id, twilioResult.sid);
 
       // Insert initial system/opening conversation message
       await this.logConversationMessage({
@@ -101,7 +110,7 @@ class CallService {
 
       return updatedAttempt;
     } catch (err) {
-      logger.error('Failed to initiate Twilio call attempt', { callAttemptId: callAttempt.id, error: err.message });
+      logger.error('Failed to initiate Plivo call attempt', { callAttemptId: callAttempt.id, error: err.message });
       
       await prisma.callAttempt.update({
         where: { id: callAttempt.id },
@@ -286,6 +295,71 @@ class CallService {
     ]);
 
     return { calls, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+  }
+
+  /**
+   * Terminate an active call attempt
+   */
+  async endActiveCall(callAttemptId) {
+    const attempt = await prisma.callAttempt.findUnique({
+      where: { id: callAttemptId },
+      include: { lead: true }
+    });
+
+    if (!attempt) {
+      throw new Error(`Call attempt [${callAttemptId}] not found.`);
+    }
+
+    const activeStatuses = ['QUEUED', 'INITIATING', 'RINGING', 'ANSWERED', 'IN_PROGRESS'];
+    if (!activeStatuses.includes(attempt.status)) {
+      logger.info(`Call [${callAttemptId}] is already in terminal state [${attempt.status}]. Skipping termination.`);
+      return attempt;
+    }
+
+    let terminationError = null;
+    if (attempt.plivoCallUuid) {
+      try {
+        await plivoService.terminateCall({
+          callUuid: attempt.plivoCallUuid,
+          region: attempt.plivoRegion || 'US'
+        });
+      } catch (err) {
+        terminationError = err;
+        logger.error(`Provider termination failed for call [${callAttemptId}]`, {
+          error: err.message,
+          callUuid: attempt.plivoCallUuid
+        });
+      }
+    }
+
+    const updatedAttempt = await prisma.callAttempt.update({
+      where: { id: attempt.id },
+      data: {
+        status: 'CANCELED',
+        endedAt: new Date(),
+        duration: attempt.duration || (attempt.startedAt
+          ? Math.max(1, Math.floor((Date.now() - new Date(attempt.startedAt).getTime()) / 1000))
+          : null),
+        failureReason: terminationError
+          ? `User terminated call, but provider termination failed: ${terminationError.message}`
+          : 'User terminated call from dashboard controls.'
+      }
+    });
+
+    if (attempt.leadId) {
+      await prisma.lead.update({
+        where: { id: attempt.leadId },
+        data: { status: 'COMPLETED' }
+      });
+    }
+
+    broadcastEvent('call_status_change', {
+        callAttemptId: updatedAttempt.id,
+        status: updatedAttempt.status,
+        leadId: updatedAttempt.leadId
+    });
+
+    return updatedAttempt;
   }
 }
 

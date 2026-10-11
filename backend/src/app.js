@@ -16,6 +16,9 @@ const webhookController = require('./controllers/webhook.controller');
 
 const app = express();
 
+// Enable trust proxy for Cloudflare Tunnel / reverse proxies to resolve rate limiting X-Forwarded-For issues
+app.set('trust proxy', 1);
+
 app.use((req, res, next) => {
   const startedAt = Date.now();
   res.on('finish', () => {

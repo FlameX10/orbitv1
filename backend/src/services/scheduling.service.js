@@ -10,7 +10,14 @@ class SchedulingService {
     if (leadId === undefined || leadId === null) return null;
 
     const value = String(leadId).trim();
-    if (!value || ['none', 'null', 'undefined', 'nan'].includes(value.toLowerCase())) {
+    const lower = value.toLowerCase();
+
+    if (!value || ['none', 'null', 'undefined', 'nan', 'false', 'true'].includes(lower)) {
+      return null;
+    }
+
+    // Reject literal unreplaced template placeholders (e.g. {{lead_id}}, $lead_id, {{call_attempt_id}})
+    if (value.startsWith('{{') || value.startsWith('$') || value.includes('{') || value.includes('}')) {
       return null;
     }
 
@@ -43,14 +50,21 @@ class SchedulingService {
    * Default timezone: Asia/Kolkata (configurable via env)
    */
   resolveCallbackTime(rawText, userTimezone = env.defaultTimezone) {
+    if (rawText && !Number.isNaN(Date.parse(rawText))) {
+      const parsed = new Date(rawText);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed;
+      }
+    }
+
     const text = (rawText || '').toLowerCase().trim();
     const nowUtc = new Date();
     
     // Convert current UTC time into target timezone local time representation
     let localNow = toZonedTime(nowUtc, userTimezone);
 
-    // 1. Minute relative offset ("in 10 minutes", "after two minutes", "in 30 mins")
-    const minutesMatch = text.match(/(?:in|after)\s+(?:an?\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty)\s*(?:min|mins|minute|minutes)/i);
+    // 1. Minute relative offset ("in 10 minutes", "5 minutes later", "after two minutes", "in 30 mins", "5 mins")
+    const minutesMatch = text.match(/(?:in|after)?\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty)\s*(?:min|mins|minute|minutes)(?:\s+later)?/i);
     if (minutesMatch) {
       const minuteValue = parseInt(minutesMatch[1], 10);
       const mins = Number.isNaN(minuteValue) ? this._resolveNumberWord(minutesMatch[1]) : minuteValue;
@@ -60,8 +74,8 @@ class SchedulingService {
       }
     }
 
-    // 2. Hour relative offset ("in 2 hours", "after one hour", "in 1 hr")
-    const hoursMatch = text.match(/(?:in|after)\s+(?:an?\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?:hr|hrs|hour|hours)/i);
+    // 2. Hour relative offset ("in 2 hours", "1 hour later", "after one hour", "in 1 hr", "2 hrs")
+    const hoursMatch = text.match(/(?:in|after)?\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*(?:hr|hrs|hour|hours)(?:\s+later)?/i);
     if (hoursMatch) {
       const hourValue = parseInt(hoursMatch[1], 10);
       const hrs = Number.isNaN(hourValue) ? this._resolveNumberWord(hoursMatch[1]) : hourValue;
@@ -160,13 +174,22 @@ class SchedulingService {
       // Calculate delay seconds
       const delaySeconds = Math.max(1, Math.floor((scheduledFor.getTime() - Date.now()) / 1000));
       
-      await scheduleJob(JOB_QUEUES.CALLBACK_LEAD, {
-        callbackId: updated.id,
-        leadId: normalizedLeadId,
-        reason: 'scheduled_callback'
-      }, { startAfter: delaySeconds });
+      try {
+        await scheduleJob(JOB_QUEUES.CALLBACK_LEAD, {
+          callbackId: updated.id,
+          leadId: normalizedLeadId,
+          reason: 'scheduled_callback'
+        }, { startAfter: delaySeconds });
 
-      return updated;
+        return updated;
+      } catch (jobErr) {
+        logger.error(`Failed to queue callback job for updated Callback [${updated.id}]. Rolling back status to FAILED.`, { error: jobErr.message });
+        await prisma.callback.update({
+          where: { id: updated.id },
+          data: { status: 'FAILED' }
+        });
+        throw new Error(`Callback update succeeded, but background scheduling queue failed: ${jobErr.message}`);
+      }
     }
 
     // Create Callback record in Postgres transaction
@@ -191,14 +214,27 @@ class SchedulingService {
     });
 
     const delaySeconds = Math.max(1, Math.floor((scheduledFor.getTime() - Date.now()) / 1000));
-    await scheduleJob(JOB_QUEUES.CALLBACK_LEAD, {
-      callbackId: callback.id,
-      leadId: normalizedLeadId,
-      reason: 'scheduled_callback'
-    }, { startAfter: delaySeconds });
+    try {
+      await scheduleJob(JOB_QUEUES.CALLBACK_LEAD, {
+        callbackId: callback.id,
+        leadId: normalizedLeadId,
+        reason: 'scheduled_callback'
+      }, { startAfter: delaySeconds });
 
-    logger.info(`Callback successfully scheduled for Lead [${normalizedLeadId}] at [${scheduledFor.toISOString()}] (in ${delaySeconds}s)`);
-    return callback;
+      logger.info(`Callback successfully scheduled for Lead [${normalizedLeadId}] at [${scheduledFor.toISOString()}] (in ${delaySeconds}s)`);
+      return callback;
+    } catch (jobErr) {
+      logger.error(`Failed to queue callback job for Callback [${callback.id}]. Rolling back status to FAILED.`, { error: jobErr.message });
+      await prisma.callback.update({
+        where: { id: callback.id },
+        data: { status: 'FAILED' }
+      });
+      await prisma.lead.update({
+        where: { id: normalizedLeadId },
+        data: { status: 'NEW' }
+      });
+      throw new Error(`Callback persistence succeeded, but background scheduling queue failed: ${jobErr.message}`);
+    }
   }
 
   async listCallbacks({ page = 1, limit = 20, status }) {
@@ -230,6 +266,28 @@ class SchedulingService {
         canceledAt: new Date()
       }
     });
+  }
+
+  async cancelPendingCallbacksForLead(leadId) {
+    const normalizedId = this.normalizeLeadId(leadId);
+    if (!normalizedId) return { count: 0 };
+
+    const result = await prisma.callback.updateMany({
+      where: {
+        leadId: normalizedId,
+        status: 'SCHEDULED'
+      },
+      data: {
+        status: 'CANCELED',
+        canceledAt: new Date()
+      }
+    });
+
+    if (result.count > 0) {
+      logger.warn(`Canceled ${result.count} pending scheduled callback(s) for DO_NOT_CALL Lead [${normalizedId}]`);
+    }
+
+    return result;
   }
 }
 

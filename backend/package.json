@@ -11,6 +11,7 @@
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:push": "npx prisma db push",
     "db:seed": "node prisma/seed.js",
+    "db:clean": "node src/scripts/resetDb.js",
     "test": "npx vitest run --passWithNoTests"
   },
   "dependencies": {

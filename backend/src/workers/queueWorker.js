@@ -3,6 +3,8 @@ const logger = require('../config/logger');
 const callService = require('../services/call.service');
 const qualificationService = require('../services/qualification.service');
 const prisma = require('../config/prisma');
+const env = require('../config/env');
+const { broadcastEvent } = require('../websocket/socket.server');
 
 async function startWorkers() {
   logger.info('Initializing PostgreSQL Queue Workers (pg-boss)...');
@@ -100,13 +102,65 @@ async function startWorkers() {
       logger.info(`[Worker] Processing POST_CALL_PROCESSING job for CallAttempt ID [${callAttemptId}]`);
 
       try {
-      await qualificationService.processPostCallQualification(callAttemptId);
-      logger.info(`[Worker] Post-call evaluation completed for CallAttempt ID [${callAttemptId}]`);
+        const attempt = await prisma.callAttempt.findUnique({ where: { id: callAttemptId } });
+        if (!attempt) {
+          logger.warn(`[Worker] CallAttempt ID [${callAttemptId}] not found in database. Skipping stale POST_CALL_PROCESSING job.`);
+          return;
+        }
+
+        await qualificationService.processPostCallQualification(callAttemptId);
+        logger.info(`[Worker] Post-call evaluation completed for CallAttempt ID [${callAttemptId}]`);
       } catch (err) {
         logger.error(`[Worker] Post-call processing failed for [${callAttemptId}]`, { error: err.message });
       }
     }
   });
+
+  const reapStaleCalls = async () => {
+    const cutoff = new Date(Date.now() - env.staleCallSeconds * 1000);
+    const staleAttempts = await prisma.callAttempt.findMany({
+      where: {
+        status: { in: ['QUEUED', 'INITIATING', 'RINGING', 'ANSWERED', 'IN_PROGRESS'] },
+        startedAt: { lt: cutoff }
+      },
+      select: { id: true, leadId: true, startedAt: true }
+    });
+    for (const attempt of staleAttempts) {
+      const updated = await prisma.callAttempt.updateMany({
+        where: {
+          id: attempt.id,
+          status: { in: ['QUEUED', 'INITIATING', 'RINGING', 'ANSWERED', 'IN_PROGRESS'] }
+        },
+        data: {
+          status: 'FAILED',
+          endedAt: new Date(),
+          duration: Math.max(1, Math.floor((Date.now() - attempt.startedAt.getTime()) / 1000)),
+          failureReason: `STALE_REAPED: no provider hangup callback within ${env.staleCallSeconds}s`
+        }
+      });
+      if (updated.count) {
+        await prisma.lead.updateMany({
+          where: { id: attempt.leadId, status: { in: ['CALLING', 'CONNECTED', 'QUALIFYING'] } },
+          data: { status: 'FAILED' }
+        });
+        broadcastEvent('call_status_change', {
+          callAttemptId: attempt.id,
+          leadId: attempt.leadId,
+          status: 'FAILED',
+          reason: 'stale_call_reaped'
+        });
+      }
+    }
+    if (staleAttempts.length) {
+      logger.warn('Reaped stale Plivo call attempts', { count: staleAttempts.length });
+    }
+  };
+
+  const staleCallTimer = setInterval(() => {
+    reapStaleCalls().catch(err => logger.error('Stale call reaper failed', { error: err.message }));
+  }, Math.max(60, env.staleCallSeconds) * 1000);
+  staleCallTimer.unref?.();
+  await reapStaleCalls();
 
   logger.info('PostgreSQL Workers active and listening for queued jobs.');
 }

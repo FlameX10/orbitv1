@@ -37,7 +37,9 @@ describe('ElevenLabs callback payloads', () => {
   it('accepts a valid native ElevenLabs HMAC signature', () => {
     const rawBody = JSON.stringify({ type: 'post_call_transcription' });
     const timestamp = Math.floor(Date.now() / 1000);
-    const secret = process.env.ELEVENLABS_WEBHOOK_SECRET;
+    const secret = process.env.ELEVENLABS_WEBHOOK_SECRET || 'test_secret_key_123';
+    const origSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
+    process.env.ELEVENLABS_WEBHOOK_SECRET = secret;
     const signature = crypto
       .createHmac('sha256', secret)
       .update(`${timestamp}.${rawBody}`)

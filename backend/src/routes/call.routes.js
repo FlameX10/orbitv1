@@ -6,5 +6,6 @@ router.get('/', callController.list);
 router.get('/active', callController.getActive);
 router.get('/:id', callController.getById);
 router.post('/trigger', callController.triggerOutboundCall);
+router.post('/:id/end', callController.endCall);
 
 module.exports = router;
