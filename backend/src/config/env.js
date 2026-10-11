@@ -8,6 +8,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 const nodeEnv = process.env.NODE_ENV || 'development';
 const plivoWebhookSecret = (process.env.PLIVO_WEBHOOK_SECRET || '').trim();
 const publicBaseUrl = (process.env.PUBLIC_BASE_URL || '').trim().replace(/\/+$/, '');
+const frontendUrl = (process.env.FRONTEND_URL || '').trim().replace(/\/+$/, '');
 
 if (nodeEnv === 'production') {
   if (!plivoWebhookSecret || plivoWebhookSecret === 'replace_with_a_strong_random_secret') {
@@ -19,6 +20,7 @@ module.exports = {
   nodeEnv,
   port: parseInt(process.env.PORT || '5000', 10),
   publicBaseUrl,
+  frontendUrl,
   databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/voiceagent_db?schema=public',
   
   twilio: {

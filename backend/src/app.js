@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const env = require('./config/env');
 const errorHandler = require('./middleware/error.middleware');
 const { apiLimiter } = require('./middleware/rateLimiter.middleware');
 
@@ -31,7 +32,21 @@ app.use((req, res, next) => {
 
 // Security and CORS middleware
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: '*', credentials: true }));
+const allowedOrigins = [
+  env.frontendUrl,
+  ...(env.nodeEnv === 'development' ? ['http://localhost:3000'] : [])
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Requests from providers and health checks generally have no Origin header.
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origin is not allowed by server CORS policy'));
+  },
+  credentials: true
+}));
 
 // Body parsers
 app.use(express.json({

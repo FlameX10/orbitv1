@@ -1,12 +1,18 @@
 const { Server } = require('socket.io');
 const logger = require('../config/logger');
+const env = require('../config/env');
 
 let ioInstance = null;
 
 function initSocketServer(httpServer) {
+  const allowedOrigins = [
+    env.frontendUrl,
+    ...(env.nodeEnv === 'development' ? ['http://localhost:3000'] : [])
+  ].filter(Boolean);
+
   const io = new Server(httpServer, {
     cors: {
-      origin: '*',
+      origin: allowedOrigins,
       methods: ['GET', 'POST']
     }
   });
