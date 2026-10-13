@@ -15,27 +15,28 @@ async function startWorkers() {
     return;
   }
 
-  // 1. Worker for CALL_LEAD jobs
-  await boss.work(JOB_QUEUES.CALL_LEAD, { teamSize: 5 }, async (jobs) => {
-    for (const job of jobs) {
+  // 1. Worker for CALL_LEAD jobs. Match worker capacity to the existing
+  // application-wide call limit; the reservation lock remains authoritative.
+  await boss.work(JOB_QUEUES.CALL_LEAD, { teamSize: env.maxConcurrentCalls }, async (jobs) => {
+    await Promise.all(jobs.map(async (job) => {
       const { leadId, reason } = job.data;
       logger.info(`[Worker] Processing CALL_LEAD job for Lead ID [${leadId}]`, { jobId: job.id, reason });
 
       try {
-      // Check DNC status before calling (Rule 1)
-      const lead = await prisma.lead.findUnique({ where: { id: leadId } });
-      if (!lead || lead.status === 'DO_NOT_CALL') {
-        logger.warn(`[Worker] Lead [${leadId}] is missing or marked DO_NOT_CALL. Canceling job.`);
-        return;
-      }
+        // Check DNC status before calling (Rule 1)
+        const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+        if (!lead || lead.status === 'DO_NOT_CALL') {
+          logger.warn(`[Worker] Lead [${leadId}] is missing or marked DO_NOT_CALL. Canceling job.`);
+          return;
+        }
 
-      await callService.initiateCallForLead(leadId, reason || 'new_lead_job');
-      logger.info(`[Worker] CALL_LEAD job executed successfully for Lead [${leadId}]`);
+        await callService.initiateCallForLead(leadId, reason || 'new_lead_job');
+        logger.info(`[Worker] CALL_LEAD job executed successfully for Lead [${leadId}]`);
       } catch (err) {
         logger.error(`[Worker] CALL_LEAD job failed for Lead [${leadId}]`, { error: err.message });
-        throw err; // Trigger pg-boss retry policy
+        throw err; // Trigger pg-boss retry policy for the failed batch
       }
-    }
+    }));
   });
 
   // 2. Worker for CALLBACK_LEAD jobs
