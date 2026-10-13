@@ -35,7 +35,7 @@ export default function Sidebar() {
         </div>
         <div>
           <h1 className="font-extrabold text-lg text-white tracking-tight flex items-center gap-1.5">
-            Vedron <span className="text-cyan-400 text-xs px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800 font-mono">VOICE</span>
+            Orbit <span className="text-cyan-400 text-xs px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800 font-mono">VOICE</span>
           </h1>
           <p className="text-xs text-slate-400">AI Lead Qualification</p>
         </div>

@@ -8,7 +8,7 @@ export default function QualificationBadge({ status, score }) {
     CALLBACK_SCHEDULED: 'bg-amber-950/80 border-amber-700/60 text-amber-400',
     DO_NOT_CALL: 'bg-slate-900 border-slate-700 text-slate-400',
     NEW: 'bg-cyan-950/80 border-cyan-700/60 text-cyan-400',
-    CALLING: 'bg-blue-950/80 border-blue-700/60 text-blue-400 animate-pulse'
+    CALLING: 'bg-amber-950/80 border-amber-700/60 text-amber-400 animate-pulse'
   };
 
   const currentStyle = badgeStyles[status] || 'bg-slate-800 border-slate-700 text-slate-300';

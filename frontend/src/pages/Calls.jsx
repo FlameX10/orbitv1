@@ -109,7 +109,7 @@ export default function Calls() {
                   <td className="p-4">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
                       call.status === 'COMPLETED' ? 'bg-emerald-950/80 border-emerald-800 text-emerald-300' :
-                      call.status === 'IN_PROGRESS' ? 'bg-cyan-950/80 border-cyan-800 text-cyan-300 animate-pulse' :
+                      call.status === 'IN_PROGRESS' || call.status === 'RINGING' ? 'bg-amber-950/80 border-amber-800 text-amber-300 animate-pulse' :
                       call.status === 'NO_ANSWER' ? 'bg-amber-950/80 border-amber-800 text-amber-300' :
                       'bg-rose-950/80 border-rose-800 text-rose-300'
                     }`}>

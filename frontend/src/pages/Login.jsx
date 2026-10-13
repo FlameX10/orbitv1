@@ -33,7 +33,7 @@ export default function Login() {
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center mx-auto text-slate-950 shadow-lg shadow-cyan-500/30">
             <Zap className="w-7 h-7 fill-current" />
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">Vedron Voice AI Platform</h1>
+          <h1 className="text-2xl font-extrabold text-white tracking-tight">Orbit Voice AI Platform</h1>
           <p className="text-xs text-slate-400">Sign in to manage lead qualification & active call telemetry</p>
         </div>
 

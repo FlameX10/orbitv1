@@ -1,54 +1,274 @@
 @import "tailwindcss";
 
+:root {
+  --color-background: #F8F8F4;
+  --color-surface: #FFFFFF;
+  --color-primary: #64816D;
+  --color-primary-hover: #526C5A;
+  --color-text-primary: #252A26;
+  --color-text-secondary: #6B726C;
+  --color-border: #E1E5DE;
+  --color-hover: #EFF3ED;
+  --color-selected: #EAF0E8;
+  --color-success: #27845A;
+  --color-warning: #B7791F;
+  --color-error: #C44747;
+  --color-disabled: #A7ADA7;
+}
+
 @layer base {
+  html {
+    background: var(--color-background);
+  }
+
   body {
+    margin: 0;
+    background: var(--color-background);
+    color: var(--color-text-primary);
     font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus,
+  button:focus-visible,
+  a:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
   }
 }
 
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
+/* Shared surfaces: retain the existing component architecture without the old glass effect. */
+.glass-panel,
 .glass-card {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: 0 1px 3px rgba(37, 42, 38, 0.05) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
-.glow-cyan {
-  box-shadow: 0 0 20px -5px rgba(6, 182, 212, 0.4);
+.bg-slate-950,
+.bg-slate-900,
+.bg-slate-800,
+.bg-slate-700 {
+  background-color: var(--color-surface) !important;
 }
 
-.glow-emerald {
-  box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.4);
+.bg-slate-950\/80,
+.bg-slate-900\/80,
+.bg-slate-900\/60,
+.bg-slate-900\/40,
+.bg-slate-800\/50 {
+  background-color: var(--color-hover) !important;
 }
 
-/* Custom Scrollbars */
+.text-white,
+.text-slate-100,
+.text-slate-200,
+.text-slate-300 {
+  color: var(--color-text-primary) !important;
+}
+
+.text-slate-400,
+.text-slate-500 {
+  color: var(--color-text-secondary) !important;
+}
+
+.border-slate-800,
+.border-slate-700,
+.border-slate-800\/80,
+.border-slate-800\/60 {
+  border-color: var(--color-border) !important;
+}
+
+.divide-slate-800\/60 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--color-border) !important;
+}
+
+.hover\:bg-slate-800:hover,
+.hover\:bg-slate-800\/50:hover,
+.hover\:bg-slate-900\/40:hover,
+.hover\:bg-slate-700:hover {
+  background-color: var(--color-hover) !important;
+}
+
+.hover\:text-slate-200:hover,
+.hover\:text-white:hover {
+  color: var(--color-primary-hover) !important;
+}
+
+.text-cyan-300,
+.text-cyan-400,
+.text-blue-400,
+.text-blue-300,
+.text-indigo-300,
+.text-purple-400,
+.text-purple-300,
+.text-teal-400 {
+  color: var(--color-primary) !important;
+}
+
+.text-emerald-300,
+.text-emerald-400 {
+  color: var(--color-success) !important;
+}
+
+.text-amber-300,
+.text-amber-400,
+.text-orange-400 {
+  color: var(--color-warning) !important;
+}
+
+.text-rose-300,
+.text-rose-400,
+.text-red-400 {
+  color: var(--color-error) !important;
+}
+
+.bg-cyan-500,
+.bg-cyan-600,
+.bg-blue-600,
+.bg-blue-500,
+.bg-emerald-500,
+.bg-teal-500 {
+  background-color: var(--color-primary) !important;
+}
+
+.hover\:bg-cyan-400:hover,
+.hover\:bg-cyan-500:hover,
+.hover\:bg-blue-500:hover,
+.hover\:bg-blue-600:hover {
+  background-color: var(--color-primary-hover) !important;
+}
+
+.border-cyan-500,
+.border-cyan-800,
+.border-cyan-700,
+.border-blue-700,
+.border-blue-800,
+.border-indigo-800,
+.border-emerald-500,
+.border-emerald-800,
+.border-amber-800,
+.border-rose-800 {
+  border-color: var(--color-border) !important;
+}
+
+.bg-emerald-950,
+.bg-emerald-950\/20,
+.bg-emerald-950\/80 {
+  background-color: #EAF3EC !important;
+}
+
+.bg-amber-950,
+.bg-amber-950\/80,
+.bg-orange-950 {
+  background-color: #FBF2DF !important;
+}
+
+.bg-rose-950,
+.bg-rose-950\/80,
+.bg-red-950 {
+  background-color: #FBEAEA !important;
+}
+
+.bg-red-500\/10,
+.bg-rose-500\/10 {
+  background-color: #FBEAEA !important;
+}
+
+.bg-cyan-950,
+.bg-cyan-950\/80,
+.bg-blue-950,
+.bg-indigo-950,
+.bg-purple-950 {
+  background-color: var(--color-selected) !important;
+}
+
+.border-emerald-500\/20,
+.border-cyan-500\/30,
+.border-cyan-500\/40,
+.border-cyan-900\/40 {
+  border-color: var(--color-border) !important;
+}
+
+.bg-gradient-to-r,
+.bg-gradient-to-br,
+.bg-gradient-to-tr,
+.bg-linear-to-r,
+.bg-linear-to-tr {
+  background-image: none !important;
+  background-color: var(--color-surface) !important;
+}
+
+.bg-gradient-to-r {
+  background-color: var(--color-primary) !important;
+}
+
+.bg-gradient-to-tr,
+.bg-linear-to-tr {
+  background-color: var(--color-primary) !important;
+}
+
+.bg-linear-to-r {
+  background-color: var(--color-selected) !important;
+}
+
+.bg-gradient-to-br {
+  background-color: var(--color-surface) !important;
+}
+
+.hover\:from-cyan-400:hover,
+.hover\:to-blue-500:hover {
+  background-image: none !important;
+  background-color: var(--color-primary-hover) !important;
+}
+
+.bg-gradient-to-br .text-cyan-400,
+.bg-gradient-to-br .text-emerald-400,
+.bg-gradient-to-br .text-amber-400,
+.bg-gradient-to-br .text-purple-400,
+.bg-gradient-to-br .text-rose-400 {
+  color: var(--color-primary) !important;
+}
+
+.shadow-cyan-500\/20,
+.shadow-cyan-500\/30,
+.shadow-2xl {
+  box-shadow: 0 8px 24px rgba(37, 42, 38, 0.08) !important;
+}
+
+/* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.5);
+  background: var(--color-background);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(51, 65, 85, 0.8);
+  background: #C9D2C9;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(71, 85, 105, 1);
+  background: var(--color-primary);
 }
 
 @keyframes pulse-slow {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.05); }
+  50% { opacity: 0.65; transform: scale(1.05); }
 }
 
 .animate-pulse-slow {

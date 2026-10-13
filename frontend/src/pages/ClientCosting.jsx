@@ -88,7 +88,7 @@ Option B: Monthly All-Inclusive Retainer
 - Included Calls: ${monthlyCalls} qualification calls per month
 - Overage Rate: $${(clientPricePerCall * 1.1).toFixed(2)} per call beyond package
 
-Generated via Vedron Voice Engine - Zero-Redis Architecture
+Generated via Orbit Voice Engine - Zero-Redis Architecture
 ========================================================`;
   };
 
