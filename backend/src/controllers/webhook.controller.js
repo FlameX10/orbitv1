@@ -473,6 +473,9 @@ class WebhookController {
 
   _extractProviderIdentifiers(sources) {
     return {
+      triggerApiId: this._extractFromSources(sources, [
+        'api_id', 'apiId', 'trigger_api_id', 'triggerApiId'
+      ]),
       conversationId: this._extractFromSources(sources, [
         'conversation_id', 'conversationId', 'ConversationID'
       ]),
@@ -562,10 +565,11 @@ class WebhookController {
       attempt.plivoCallUuid === attempt.plivoTriggerApiId);
   }
 
-  _identifiersConflict(attempt, { callUuid, conversationId, flowId, flowRunUuid }) {
+  _identifiersConflict(attempt, { callUuid, triggerApiId, conversationId, flowId, flowRunUuid }) {
     const differs = (stored, incoming) =>
       Boolean(stored && incoming && String(stored).toLowerCase() !== String(incoming).toLowerCase());
     return (!this._hasMislabeledCallUuid(attempt) && differs(attempt.plivoCallUuid, callUuid)) ||
+      differs(attempt.plivoTriggerApiId, triggerApiId) ||
       differs(attempt.plivoConversationId, conversationId) ||
       differs(attempt.plivoFlowId, flowId) ||
       differs(attempt.plivoFlowRunUuid, flowRunUuid);
@@ -580,6 +584,7 @@ class WebhookController {
   }) {
     const incoming = {
       callUuid: candidateUuids[0] || null,
+      triggerApiId: providerIdentifiers.triggerApiId || null,
       conversationId: providerIdentifiers.conversationId || null,
       flowId: providerIdentifiers.flowId || null,
       flowRunUuid: providerIdentifiers.flowRunUuid || null
@@ -602,6 +607,14 @@ class WebhookController {
         });
       if (attempt) return { attempt, matchedBy: 'plivoCallUuid' };
     }
+    if (incoming.triggerApiId) {
+      const attempt = await prisma.callAttempt.findFirst({
+        where: { plivoTriggerApiId: incoming.triggerApiId }
+      });
+      if (attempt && !this._identifiersConflict(attempt, incoming)) {
+        return { attempt, matchedBy: 'plivoTriggerApiId' };
+      }
+    }
     if (incoming.conversationId) {
       const attempt = await prisma.callAttempt.findFirst({
         where: { plivoConversationId: incoming.conversationId }
@@ -614,6 +627,7 @@ class WebhookController {
       });
       if (attempt) return { attempt, matchedBy: 'plivoFlowRunUuid' };
     }
+    let ambiguousFlowMatch = false;
     if (incoming.flowId) {
       const flowAttempts = await prisma.callAttempt.findMany({
         where: {
@@ -627,7 +641,9 @@ class WebhookController {
         return { attempt: flowAttempts[0], matchedBy: 'plivoFlowId_active' };
       }
       if (flowAttempts.length > 1) {
-        return { attempt: null, matchedBy: 'ambiguous_plivoFlowId' };
+        // A flow ID identifies the shared Agent Studio flow, not one call.
+        // Keep looking for a deterministic lead/phone match below.
+        ambiguousFlowMatch = true;
       }
     }
 
@@ -670,14 +686,15 @@ class WebhookController {
       }
     }
 
-    return { attempt: null, matchedBy: 'none' };
+    return { attempt: null, matchedBy: ambiguousFlowMatch ? 'ambiguous_plivoFlowId' : 'none' };
   }
 
-  async _linkProviderIdentifiers(attempt, { callUuid, conversationId, flowId, flowRunUuid }) {
+  async _linkProviderIdentifiers(attempt, { callUuid, triggerApiId, conversationId, flowId, flowRunUuid }) {
     const data = {};
     if (callUuid && (!attempt.plivoCallUuid || this._hasMislabeledCallUuid(attempt))) {
       data.plivoCallUuid = callUuid;
     }
+    if (triggerApiId && !attempt.plivoTriggerApiId) data.plivoTriggerApiId = triggerApiId;
     if (conversationId && !attempt.plivoConversationId) data.plivoConversationId = conversationId;
     if (flowId && !attempt.plivoFlowId) data.plivoFlowId = flowId;
     if (flowRunUuid && !attempt.plivoFlowRunUuid) data.plivoFlowRunUuid = flowRunUuid;
