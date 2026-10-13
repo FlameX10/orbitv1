@@ -14,6 +14,7 @@ import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import ClientCosting from './pages/ClientCosting';
 import PublicLeadForm from './pages/PublicLeadForm';
+import StandaloneInstantCall from './pages/StandaloneInstantCall';
 import Login from './pages/Login';
 
 function ProtectedRoute({ children }) {
@@ -30,6 +31,7 @@ export default function App() {
         <SocketProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/instant-call" element={<StandaloneInstantCall />} />
 
             <Route
               path="/"

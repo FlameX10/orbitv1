@@ -504,3 +504,16 @@ Never change PORT=5000 just because the public URL changes.
 Do not hardcode the temporary Cloudflare URL in application source code.
 leadId is owned by the backend and should be passed to ElevenLabs as a dynamic variable.
 The LLM should extract timeText, timezone, and reason; it should not generate or infer leadId.
+
+## Shareable instant-call form
+
+The frontend includes a public instant-call page at `/instant-call`. It reuses
+the existing lead form and submits to the existing `POST /api/leads` endpoint,
+so it follows the same queue, Plivo routing, status tracking, and webhook flow
+without requiring dashboard login.
+
+When deployed on Netlify, share:
+
+```text
+https://<your-netlify-site>.netlify.app/instant-call
+```

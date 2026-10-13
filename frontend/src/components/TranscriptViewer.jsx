@@ -12,7 +12,7 @@ export default function TranscriptViewer({ messages = [] }) {
   }
 
   return (
-    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+    <div className="transcript-viewer space-y-4 max-h-[500px] overflow-y-auto pr-2">
       {messages.map((msg, index) => {
         const isAI = msg.role === 'AI';
         const isSystem = msg.role === 'SYSTEM' || msg.role === 'TOOL';
@@ -40,19 +40,19 @@ export default function TranscriptViewer({ messages = [] }) {
               </div>
             )}
 
-            <div className={`max-w-[75%] rounded-2xl p-4 shadow-lg ${
+            <div className={`transcript-bubble ${isAI ? 'transcript-bubble-ai' : 'transcript-bubble-human'} max-w-[75%] rounded-2xl p-4 shadow-lg ${
               isAI 
                 ? 'bg-slate-900 border border-cyan-900/40 text-slate-100 rounded-tl-none' 
                 : 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-tr-none'
             }`}>
-              <div className="flex items-center justify-between gap-4 text-[11px] mb-1 opacity-75">
+              <div className="transcript-meta flex items-center justify-between gap-4 mb-2">
                 <span className="font-semibold uppercase tracking-wider">{isAI ? 'ElevenLabs AI Agent' : 'Human Lead'}</span>
                 <span className="font-mono flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   {timestampFormatted}
                 </span>
               </div>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+              <p className="transcript-content whitespace-pre-wrap">{msg.content}</p>
             </div>
 
             {!isAI && (

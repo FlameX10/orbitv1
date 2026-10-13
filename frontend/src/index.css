@@ -25,7 +25,32 @@
     margin: 0;
     background: var(--color-background);
     color: var(--color-text-primary);
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--color-text-primary);
+    line-height: 1.3;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+  }
+
+  h2 {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+    font-size: 14px;
   }
 
   button,
@@ -239,6 +264,65 @@
 .bg-gradient-to-br .text-purple-400,
 .bg-gradient-to-br .text-rose-400 {
   color: var(--color-primary) !important;
+}
+
+.text-white.bg-gradient-to-r,
+.bg-gradient-to-r.text-white {
+  color: #FFFFFF !important;
+}
+
+.transcript-viewer {
+  font-size: 14px;
+}
+
+.transcript-bubble {
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  letter-spacing: 0;
+}
+
+.transcript-bubble-human {
+  background: var(--color-primary) !important;
+  color: #FFFFFF !important;
+}
+
+.transcript-bubble-human .transcript-meta {
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+
+.transcript-bubble-ai {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.transcript-meta {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.transcript-content {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .shadow-cyan-500\/20,
