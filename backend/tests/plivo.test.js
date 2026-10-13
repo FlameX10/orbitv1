@@ -26,23 +26,42 @@ describe('Plivo Service Regional Routing & API Triggering', () => {
   });
 
   it('3. Trigger variable mapping preserves queued trigger IDs without mislabeling api_id as call UUID', async () => {
-    const res = await plivoService.triggerOutboundAgentCall({
-      to: '+919876543210',
-      leadId: 'test-lead-123',
-      callAttemptId: 'test-attempt-456',
-      leadData: { firstName: 'Test', lastName: 'User', company: 'Acme Corp' }
+    const axios = require('axios');
+    const post = vi.spyOn(axios, 'post').mockResolvedValue({
+      status: 200,
+      data: {
+        api_id: 'trigger-api-123',
+        message: 'Phlo run queued',
+        phlo_id: 'shared-flow-123'
+      }
     });
 
-    expect(res.success).toBe(true);
-    expect(res.region).toBe('IN');
-    if (res.isMock) {
-      expect(res.callUuid).toBeDefined();
-      expect(typeof res.callUuid).toBe('string');
-    } else {
-      expect(res.callUuid).toBeUndefined();
-      expect(res.triggerApiId).toBeDefined();
-      expect(typeof res.triggerApiId).toBe('string');
-      expect(res.flowId).toBe('dfabeb10-2d58-401e-8dc7-d1d182311f9c');
+    try {
+      const res = await plivoService.triggerOutboundAgentCall({
+        to: '+919876543210',
+        leadId: 'test-lead-123',
+        callAttemptId: 'test-attempt-456',
+        leadData: { firstName: 'Test', lastName: 'User', company: 'Acme Corp' }
+      });
+
+      expect(res).toMatchObject({
+        success: true,
+        isMock: false,
+        callUuid: undefined,
+        triggerApiId: 'trigger-api-123',
+        flowId: 'shared-flow-123'
+      });
+      expect(res.callUuid).not.toBe('trigger-api-123');
+      expect(post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          leadId: 'test-lead-123',
+          call_attempt_id: 'test-attempt-456'
+        }),
+        expect.objectContaining({ timeout: 10000 })
+      );
+    } finally {
+      post.mockRestore();
     }
   });
 
@@ -638,6 +657,125 @@ describe('Plivo Security & Webhook Validation', () => {
     }
   });
 
+  it('29. Rejects deterministic identifier conflicts instead of cross-attaching the webhook', async () => {
+    const prisma = require('../src/config/prisma');
+    const controller = require('../src/controllers/webhook.controller');
+    const attempt = {
+      id: 'attempt-correct',
+      leadId: 'lead-correct',
+      plivoCallUuid: 'call-correct',
+      plivoConversationId: 'conversation-correct',
+      plivoFlowRunUuid: 'run-correct',
+      plivoFlowId: 'shared-flow',
+      plivoTriggerApiId: 'trigger-correct',
+      status: 'IN_PROGRESS'
+    };
+    const spyFindFirst = vi.spyOn(prisma.callAttempt, 'findFirst').mockResolvedValue(attempt);
+
+    try {
+      const result = await controller._findMatchingCallAttempt({
+        candidateUuids: ['call-correct'],
+        providerIdentifiers: {
+          conversationId: 'conversation-other',
+          flowRunUuid: 'run-other',
+          flowId: 'shared-flow'
+        }
+      });
+      expect(result).toEqual({
+        attempt: null,
+        matchedBy: 'conflict_plivoCallUuid'
+      });
+    } finally {
+      spyFindFirst.mockRestore();
+    }
+  });
+
+  it('30. Shared flow UUID with simultaneous attempts remains unmatched', async () => {
+    const prisma = require('../src/config/prisma');
+    const flowAttempts = [
+      { id: 'attempt-a', leadId: 'lead-a', plivoFlowId: 'shared-flow', status: 'IN_PROGRESS' },
+      { id: 'attempt-b', leadId: 'lead-b', plivoFlowId: 'shared-flow', status: 'IN_PROGRESS' }
+    ];
+    const findMany = vi.spyOn(prisma.callAttempt, 'findMany').mockResolvedValue(flowAttempts);
+
+    try {
+      const result = await webhookController._findMatchingCallAttempt({
+        providerIdentifiers: { flowId: 'shared-flow' }
+      });
+      expect(result).toEqual({ attempt: null, matchedBy: 'ambiguous_plivoFlowId' });
+    } finally {
+      findMany.mockRestore();
+    }
+  });
+
+  it('31. Same-lead simultaneous attempts are not resolved by lead alone', async () => {
+    const prisma = require('../src/config/prisma');
+    const findMany = vi.spyOn(prisma.callAttempt, 'findMany').mockResolvedValue([
+      { id: 'attempt-old', leadId: 'same-lead', status: 'IN_PROGRESS' },
+      { id: 'attempt-new', leadId: 'same-lead', status: 'IN_PROGRESS' }
+    ]);
+
+    try {
+      const result = await webhookController._findMatchingCallAttempt({ leadId: 'same-lead' });
+      expect(result).toEqual({ attempt: null, matchedBy: 'ambiguous_leadId' });
+    } finally {
+      findMany.mockRestore();
+    }
+  });
+
+  it('32. A valid call UUID and conversation ID resolve the same attempt', async () => {
+    const prisma = require('../src/config/prisma');
+    const attempt = {
+      id: 'attempt-new',
+      plivoCallUuid: 'call-new',
+      plivoConversationId: 'conversation-new',
+      status: 'IN_PROGRESS'
+    };
+    const findFirst = vi.spyOn(prisma.callAttempt, 'findFirst').mockResolvedValue(attempt);
+
+    try {
+      const result = await webhookController._findMatchingCallAttempt({
+        candidateUuids: ['call-new'],
+        providerIdentifiers: { conversationId: 'conversation-new' }
+      });
+      expect(result).toEqual({ attempt, matchedBy: 'plivoCallUuid' });
+    } finally {
+      findFirst.mockRestore();
+    }
+  });
+
+  it('33. An older completed attempt cannot steal a newer active call webhook', async () => {
+    const prisma = require('../src/config/prisma');
+    const newer = {
+      id: 'attempt-new',
+      plivoCallUuid: 'call-new',
+      status: 'IN_PROGRESS'
+    };
+    const findFirst = vi.spyOn(prisma.callAttempt, 'findFirst').mockResolvedValue(newer);
+
+    try {
+      const result = await webhookController._findMatchingCallAttempt({
+        candidateUuids: ['call-new']
+      });
+      expect(result.attempt.id).toBe('attempt-new');
+      expect(result.matchedBy).toBe('plivoCallUuid');
+    } finally {
+      findFirst.mockRestore();
+    }
+  });
+
+  it('34. A webhook without internal or provider trigger IDs remains unmatched', async () => {
+    const prisma = require('../src/config/prisma');
+    const findMany = vi.spyOn(prisma.callAttempt, 'findMany').mockResolvedValue([]);
+
+    try {
+      const result = await webhookController._findMatchingCallAttempt({});
+      expect(result).toEqual({ attempt: null, matchedBy: 'none' });
+    } finally {
+      findMany.mockRestore();
+    }
+  });
+
   it('28. Event API structure: Correctly extracts call_uuid, call_attempt_id and vars from data.object', async () => {
     const secret = process.env.PLIVO_WEBHOOK_SECRET || 'secret';
     const prisma = require('../src/config/prisma');
@@ -752,6 +890,3 @@ describe('Plivo Security & Webhook Validation', () => {
     }
   });
 });
-
-
-

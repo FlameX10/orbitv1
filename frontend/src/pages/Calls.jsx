@@ -4,6 +4,15 @@ import api from '../services/api';
 import { Link } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 
+function getProviderTracking(call) {
+  if (call.plivoCallUuid) return { label: 'Call UUID', value: call.plivoCallUuid };
+  if (call.plivoTriggerApiId) return { label: 'Trigger API ID', value: call.plivoTriggerApiId };
+  if (call.plivoFlowRunUuid) return { label: 'Flow Run UUID', value: call.plivoFlowRunUuid };
+  if (call.plivoConversationId) return { label: 'Conversation ID', value: call.plivoConversationId };
+  if (call.twilioCallSid) return { label: 'Twilio SID', value: call.twilioCallSid };
+  return { label: 'Provider ID', value: 'Unavailable' };
+}
+
 export default function Calls() {
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +75,7 @@ export default function Calls() {
           <thead className="bg-slate-900 text-xs font-semibold text-slate-400 uppercase tracking-wider">
             <tr>
               <th className="p-4">Lead Name & Phone</th>
-              <th className="p-4">Plivo Call UUID</th>
+              <th className="p-4">Provider Tracking ID</th>
               <th className="p-4">Region</th>
               <th className="p-4">Attempt #</th>
               <th className="p-4">Status</th>
@@ -97,7 +106,12 @@ export default function Calls() {
                     </div>
                     <div className="text-xs font-mono text-cyan-400">{call.lead?.phone}</div>
                   </td>
-                  <td className="p-4 font-mono text-xs text-slate-400">{call.plivoCallUuid || call.twilioCallSid || 'Provider UUID unavailable'}</td>
+                  <td className="p-4 font-mono text-xs text-slate-400">
+                    {(() => {
+                      const tracking = getProviderTracking(call);
+                      return <><span className="block text-[10px] uppercase tracking-wide text-slate-500">{tracking.label}</span>{tracking.value}</>;
+                    })()}
+                  </td>
                   <td className="p-4">
                     <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold ${
                       call.plivoRegion === 'IN' ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-indigo-950 text-indigo-300 border border-indigo-800'

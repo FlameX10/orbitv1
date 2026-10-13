@@ -5,6 +5,15 @@ import TranscriptViewer from '../components/TranscriptViewer';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
 
+function getProviderTracking(call) {
+  if (call.plivoCallUuid) return 'Call UUID: ' + call.plivoCallUuid;
+  if (call.plivoTriggerApiId) return 'Trigger API ID: ' + call.plivoTriggerApiId;
+  if (call.plivoFlowRunUuid) return 'Flow Run UUID: ' + call.plivoFlowRunUuid;
+  if (call.plivoConversationId) return 'Conversation ID: ' + call.plivoConversationId;
+  if (call.twilioCallSid) return 'Twilio SID: ' + call.twilioCallSid;
+  return 'Provider ID: Unavailable';
+}
+
 export default function CallDetail() {
   const { id } = useParams();
   const [call, setCall] = useState(null);
@@ -81,7 +90,7 @@ export default function CallDetail() {
             )}
           </h1>
           <p className="text-xs text-slate-400 font-mono mt-1">
-            Lead: {call.lead?.firstName} {call.lead?.lastName} ({call.lead?.phone}) | Call UUID: {call.plivoCallUuid || call.twilioCallSid || 'Provider UUID unavailable'}
+            Lead: {call.lead?.firstName} {call.lead?.lastName} ({call.lead?.phone}) | {getProviderTracking(call)}
           </p>
         </div>
 

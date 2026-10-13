@@ -605,7 +605,12 @@ class WebhookController {
           where: { plivoCallUuid: { equals: uuid, mode: 'insensitive' } },
           orderBy: { createdAt: 'desc' }
         });
-      if (attempt) return { attempt, matchedBy: 'plivoCallUuid' };
+      if (attempt) {
+        if (this._identifiersConflict(attempt, incoming)) {
+          return { attempt: null, matchedBy: 'conflict_plivoCallUuid' };
+        }
+        return { attempt, matchedBy: 'plivoCallUuid' };
+      }
     }
     if (incoming.triggerApiId) {
       const attempt = await prisma.callAttempt.findFirst({
@@ -619,13 +624,23 @@ class WebhookController {
       const attempt = await prisma.callAttempt.findFirst({
         where: { plivoConversationId: incoming.conversationId }
       });
-      if (attempt) return { attempt, matchedBy: 'plivoConversationId' };
+      if (attempt) {
+        if (this._identifiersConflict(attempt, incoming)) {
+          return { attempt: null, matchedBy: 'conflict_plivoConversationId' };
+        }
+        return { attempt, matchedBy: 'plivoConversationId' };
+      }
     }
     if (incoming.flowRunUuid) {
       const attempt = await prisma.callAttempt.findFirst({
         where: { plivoFlowRunUuid: incoming.flowRunUuid }
       });
-      if (attempt) return { attempt, matchedBy: 'plivoFlowRunUuid' };
+      if (attempt) {
+        if (this._identifiersConflict(attempt, incoming)) {
+          return { attempt: null, matchedBy: 'conflict_plivoFlowRunUuid' };
+        }
+        return { attempt, matchedBy: 'plivoFlowRunUuid' };
+      }
     }
     let ambiguousFlowMatch = false;
     if (incoming.flowId) {
