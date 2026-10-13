@@ -97,7 +97,7 @@ export default function Calls() {
                     </div>
                     <div className="text-xs font-mono text-cyan-400">{call.lead?.phone}</div>
                   </td>
-                  <td className="p-4 font-mono text-xs text-slate-400">{call.plivoCallUuid || call.twilioCallSid || 'PLIVO_MOCK'}</td>
+                  <td className="p-4 font-mono text-xs text-slate-400">{call.plivoCallUuid || call.twilioCallSid || 'Provider UUID unavailable'}</td>
                   <td className="p-4">
                     <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold ${
                       call.plivoRegion === 'IN' ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-indigo-950 text-indigo-300 border border-indigo-800'

@@ -65,8 +65,20 @@ class PlivoService {
 
     logger.info(`Routing Outbound Plivo Call: Phone [${to}] -> Region [${config.region}] Caller ID [${config.callerNumber}]`);
 
-    // Mock Mode fallback for local unit tests or unconfigured dev environments
-    if (!config.agentTriggerUrl || config.agentTriggerUrl.startsWith('MOCK') || config.agentTriggerUrl.includes('your_') || config.authId === 'MOCK_ID') {
+    // Mock mode must be explicit outside automated tests. An accidental
+    // production misconfiguration must not look like a successful call.
+    const mockRequested = process.env.PLIVO_MOCK === 'true' ||
+      (env.nodeEnv === 'test' && (!config.agentTriggerUrl || config.agentTriggerUrl.startsWith('MOCK')));
+    const invalidConfiguration = !config.agentTriggerUrl ||
+      config.agentTriggerUrl.startsWith('MOCK') ||
+      config.agentTriggerUrl.includes('your_') ||
+      config.authId === 'MOCK_ID';
+
+    if (invalidConfiguration && !mockRequested) {
+      throw new Error(`Plivo [${config.region}] agent trigger is not configured. Set the regional Plivo environment variables before initiating calls.`);
+    }
+
+    if (mockRequested) {
       logger.warn(`Plivo [${config.region}] trigger URL not configured. Executing in MOCK trigger mode.`);
       const mockCallUuid = `PLIVO_MOCK_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       return {

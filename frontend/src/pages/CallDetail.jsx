@@ -81,7 +81,7 @@ export default function CallDetail() {
             )}
           </h1>
           <p className="text-xs text-slate-400 font-mono mt-1">
-            Lead: {call.lead?.firstName} {call.lead?.lastName} ({call.lead?.phone}) | Call UUID: {call.plivoCallUuid || call.twilioCallSid || 'PLIVO_MOCK'}
+            Lead: {call.lead?.firstName} {call.lead?.lastName} ({call.lead?.phone}) | Call UUID: {call.plivoCallUuid || call.twilioCallSid || 'Provider UUID unavailable'}
           </p>
         </div>
 

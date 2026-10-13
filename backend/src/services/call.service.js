@@ -24,6 +24,65 @@ class CallService {
   }
 
   /**
+   * Reserve a call slot and create the initiating attempt atomically.
+   *
+   * The advisory lock prevents concurrent workers from passing the active-call
+   * check against the same count before either worker has created its attempt.
+   */
+  async reserveCallAttempt({ lead, agent, attemptReason }) {
+    return prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('orbit:call-capacity'))`;
+
+      const existingAttempt = await tx.callAttempt.findFirst({
+        where: {
+          leadId: lead.id,
+          status: { in: ['INITIATING', 'RINGING', 'ANSWERED', 'IN_PROGRESS'] }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+      if (existingAttempt) {
+        return { attempt: existingAttempt, reused: true };
+      }
+
+      const activeCount = await tx.callAttempt.count({
+        where: {
+          status: { in: ['INITIATING', 'RINGING', 'ANSWERED', 'IN_PROGRESS'] }
+        }
+      });
+
+      const allowed = activeCount < env.maxConcurrentCalls;
+      logger.info(`Concurrency Check: Active Calls [${activeCount}] / Max Allowed [${env.maxConcurrentCalls}] -> Allowed: ${allowed}`);
+
+      if (!allowed) {
+        logger.warn(`Concurrency limit reached (${activeCount}/${env.maxConcurrentCalls}). Re-queueing job.`);
+        throw new Error(`Concurrency limit reached. Active calls: ${activeCount}`);
+      }
+
+      const previousAttemptsCount = await tx.callAttempt.count({
+        where: { leadId: lead.id }
+      });
+
+      const callAttempt = await tx.callAttempt.create({
+        data: {
+          leadId: lead.id,
+          agentId: agent.id,
+          attemptNumber: previousAttemptsCount + 1,
+          status: 'INITIATING',
+          reason: attemptReason,
+          startedAt: new Date()
+        }
+      });
+
+      await tx.lead.update({
+        where: { id: lead.id },
+        data: { status: 'CALLING' }
+      });
+
+      return { attempt: callAttempt, reused: false };
+    });
+  }
+
+  /**
    * Initiate call attempt for a lead
    */
   async initiateCallForLead(leadId, attemptReason = 'new_lead') {
@@ -41,43 +100,39 @@ class CallService {
       return null;
     }
 
-    // 2. Concurrency guard
-    const concurrency = await this.canInitiateCall();
-    if (!concurrency.allowed) {
-      logger.warn(`Concurrency limit reached (${concurrency.activeCount}/${concurrency.max}). Re-queueing job.`);
-      throw new Error(`Concurrency limit reached. Active calls: ${concurrency.activeCount}`);
+    // A queue retry must reuse the existing active attempt instead of
+    // triggering a second provider call for the same lead.
+    const existingAttempt = await prisma.callAttempt.findFirst({
+      where: {
+        leadId: lead.id,
+        status: { in: ['INITIATING', 'RINGING', 'ANSWERED', 'IN_PROGRESS'] }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    if (existingAttempt) {
+      logger.warn(`Active call attempt already exists for Lead [${lead.id}]. Reusing attempt [${existingAttempt.id}].`);
+      return existingAttempt;
     }
 
-    // 3. Get Default Agent Config
+    // 2. Get Default Agent Config
     const agent = await agentService.getOrCreateDefaultAgent();
 
-    // 4. Calculate attempt number
-    const previousAttemptsCount = await prisma.callAttempt.count({
-      where: { leadId }
+    // 3. Reserve capacity and create the attempt as one atomic operation.
+    const reservation = await this.reserveCallAttempt({
+      lead,
+      agent,
+      attemptReason
     });
-    const attemptNumber = previousAttemptsCount + 1;
+    if (reservation.reused) {
+      logger.warn(`Active call attempt already exists for Lead [${lead.id}]. Reusing attempt [${reservation.attempt.id}].`);
+      return reservation.attempt;
+    }
+    const callAttempt = reservation.attempt;
 
-    // 5. Create CallAttempt record
-    const callAttempt = await prisma.callAttempt.create({
-      data: {
-        leadId: lead.id,
-        agentId: agent.id,
-        attemptNumber,
-        status: 'INITIATING',
-        reason: attemptReason,
-        startedAt: new Date()
-      }
-    });
-
-    // 6. Update Lead status to CALLING
-    await prisma.lead.update({
-      where: { id: lead.id },
-      data: { status: 'CALLING' }
-    });
-
-    // 7. Trigger Plivo Native AI Agent Outbound Call
+    // 4. Trigger Plivo Native AI Agent Outbound Call
+    let callResult = null;
     try {
-      const callResult = await plivoService.triggerOutboundAgentCall({
+      callResult = await plivoService.triggerOutboundAgentCall({
         to: lead.phone,
         leadId: lead.id,
         callAttemptId: callAttempt.id,
@@ -111,6 +166,34 @@ class CallService {
       return updatedAttempt;
     } catch (err) {
       logger.error('Failed to initiate Plivo call attempt', { callAttemptId: callAttempt.id, error: err.message });
+
+      // Plivo may have accepted the call even if persisting the response failed.
+      // Do not rethrow in that case: a queue retry would trigger a duplicate call.
+      if (callResult && !callResult.isMock) {
+        try {
+          const recoveredAttempt = await prisma.callAttempt.update({
+            where: { id: callAttempt.id },
+            data: {
+              plivoCallUuid: callResult.callUuid || undefined,
+              plivoTriggerApiId: callResult.triggerApiId || undefined,
+              plivoFlowId: callResult.flowId || undefined,
+              plivoConversationId: callResult.conversationId || undefined,
+              plivoFlowRunUuid: callResult.flowRunUuid || undefined,
+              plivoRegion: callResult.region || undefined,
+              status: 'IN_PROGRESS',
+              answeredAt: new Date()
+            }
+          });
+          logger.warn(`Recovered provider-accepted call attempt [${callAttempt.id}] without retrying the provider request.`);
+          return recoveredAttempt;
+        } catch (recoveryError) {
+          logger.error('Could not persist provider-accepted call identifiers', {
+            callAttemptId: callAttempt.id,
+            error: recoveryError.message
+          });
+          return callAttempt;
+        }
+      }
       
       await prisma.callAttempt.update({
         where: { id: callAttempt.id },
