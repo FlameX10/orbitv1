@@ -81,6 +81,38 @@
   -webkit-backdrop-filter: none !important;
 }
 
+.nav-item {
+  min-height: 40px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.nav-item-active {
+  background: var(--color-selected) !important;
+  color: var(--color-primary-hover) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+.nav-item-active svg {
+  color: var(--color-primary) !important;
+}
+
+.standalone-header {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+.standalone-brand {
+  color: var(--color-text-primary) !important;
+}
+
+.standalone-subtitle {
+  color: var(--color-text-secondary) !important;
+}
+
 .bg-slate-950,
 .bg-slate-900,
 .bg-slate-800,
