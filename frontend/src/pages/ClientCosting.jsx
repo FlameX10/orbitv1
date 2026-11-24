@@ -2,18 +2,20 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Calculator,
   DollarSign,
-  TrendingUp,
   Copy,
   Check,
   Phone,
   Bot,
   Server,
   Globe,
-  ShieldCheck,
   Zap,
   Info,
-  Activity,
-  RefreshCw
+  TrendingUp,
+  RefreshCw,
+  User,
+  MessageSquare,
+  Timer,
+  Search
 } from 'lucide-react';
 import api from '../services/api';
 
@@ -26,11 +28,36 @@ const RANGE_OPTIONS = [
 
 // Used by the calculator only until real billed minutes exist for a region.
 const FALLBACK_TELEPHONY_PER_MIN = { in: 0.02, us: 0.0115 };
+const LEAD_PAGE_SIZE = 25;
 
 const usd = (value, digits = 2) => `$${Number(value || 0).toFixed(digits)}`;
+const num = (value, digits = 0) => Number(value || 0).toLocaleString(undefined, {
+  minimumFractionDigits: digits,
+  maximumFractionDigits: digits
+});
 
 function toIsoDate(date) {
   return date.toISOString().slice(0, 10);
+}
+
+function StatTile({ label, value, accent = false }) {
+  return (
+    <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/80">
+      <span className="text-slate-400 text-xs font-medium uppercase tracking-wider block">{label}</span>
+      <div className={`text-xl font-black font-mono mt-1 ${accent ? 'text-emerald-300' : 'text-white'}`}>{value}</div>
+    </div>
+  );
+}
+
+function SummaryCard({ icon: Icon, label, value }) {
+  return (
+    <div className="glass-card p-5 rounded-2xl border border-slate-800">
+      <span className="text-slate-400 text-xs font-medium uppercase tracking-wider flex items-center gap-2">
+        <Icon className="w-4 h-4 text-cyan-400" /> {label}
+      </span>
+      <div className="text-2xl font-black text-white font-mono mt-2">{value}</div>
+    </div>
+  );
 }
 
 export default function ClientCosting() {
@@ -39,13 +66,14 @@ export default function ClientCosting() {
   const [actual, setActual] = useState(null);
   const [actualLoading, setActualLoading] = useState(true);
   const [actualError, setActualError] = useState(null);
+  const [leadSearch, setLeadSearch] = useState('');
+  const [leadLimit, setLeadLimit] = useState(LEAD_PAGE_SIZE);
+  const [copied, setCopied] = useState(false);
 
   // Calculator state
   const [monthlyCalls, setMonthlyCalls] = useState(500);
   const [avgDurationMins, setAvgDurationMins] = useState(3);
   const [region, setRegion] = useState('in'); // 'in' | 'us'
-  const [copied, setCopied] = useState(false);
-  const [targetMargin, setTargetMargin] = useState(60);
   const [telephonyOverride, setTelephonyOverride] = useState('');
   const [aiOverride, setAiOverride] = useState('');
   const [hostingMonthlyFixed, setHostingMonthlyFixed] = useState(20);
@@ -72,8 +100,21 @@ export default function ClientCosting() {
 
   useEffect(() => {
     loadActual();
+    setLeadLimit(LEAD_PAGE_SIZE);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
+
+  const totals = actual?.totals;
+  const rangeLabel = RANGE_OPTIONS.find(o => o.id === range)?.label || '';
+
+  const filteredLeads = useMemo(() => {
+    const leads = actual?.byLead || [];
+    const q = leadSearch.trim().toLowerCase();
+    if (!q) return leads;
+    return leads.filter(l =>
+      [l.name, l.phone, l.company].some(v => v && String(v).toLowerCase().includes(q))
+    );
+  }, [actual, leadSearch]);
 
   // Real per-minute rates derived from billed calls, per region.
   const actualRates = useMemo(() => {
@@ -93,7 +134,7 @@ export default function ClientCosting() {
     ? 'manual'
     : (actualRates.telephony !== null ? 'from your real calls' : 'Plivo list estimate');
 
-  // Calculator math
+  // Calculator math (cost only, no margin or client pricing)
   const totalMinutes = monthlyCalls * avgDurationMins;
   const totalTelephonyMonthly = totalMinutes * telephonyPerMin;
   const totalAiMonthly = totalMinutes * aiPerMin;
@@ -101,46 +142,38 @@ export default function ClientCosting() {
   const totalRawMonthlyCost = totalTelephonyMonthly + totalAiMonthly + hosting;
   const rawCostPerCall = monthlyCalls > 0 ? totalRawMonthlyCost / monthlyCalls : 0;
   const rawCostPerMin = totalMinutes > 0 ? totalRawMonthlyCost / totalMinutes : 0;
-  const clientPricePerCall = rawCostPerCall / (1 - targetMargin / 100);
-  const totalClientBillMonthly = clientPricePerCall * monthlyCalls;
-  const estimatedMonthlyProfit = totalClientBillMonthly - totalRawMonthlyCost;
   const pct = (part) => (totalRawMonthlyCost > 0 ? ((part / totalRawMonthlyCost) * 100).toFixed(0) : '0');
-  const regionLabel = region === 'in' ? 'India (+91)' : 'US / Other';
 
-  const generateProposalText = () => `========================================================
-VENTA AI VOICE AGENT - CLIENT COSTING PROPOSAL
-========================================================
-Estimated Volume: ${monthlyCalls.toLocaleString()} calls / month
-Average Call Duration: ${avgDurationMins} minutes (${totalMinutes.toLocaleString()} total voice minutes)
-Target Region: ${regionLabel}
+  const generateUsageSummary = () => {
+    if (!totals) return 'No usage data loaded.';
+    const lines = [
+      '========================================================',
+      `VENTA AI VOICE AGENT - USAGE SUMMARY (${rangeLabel})`,
+      '========================================================',
+      `Total calls: ${num(totals.calls)}`,
+      `Total minutes: ${num(totals.callMinutes, 2)}`,
+      `Billed minutes: ${num(totals.billedMinutes, 2)}`,
+      `Telephony cost: ${usd(totals.telephonyCost, 4)}`,
+      `AI agent cost: ${usd(totals.aiCost, 4)}`,
+      `Total cost: ${usd(totals.totalCost, 4)}`,
+      `Average minutes / call: ${num(totals.avgMinutesPerCall, 2)}`,
+      `Average cost / billed call: ${usd(totals.avgCostPerBilledCall, 4)}`,
+      `Billing coverage: ${totals.billingCoverage}%`,
+      '',
+      'Top leads by cost:',
+      ...(actual.byLead || []).slice(0, 10).map(l =>
+        `- ${l.name} (${l.phone || 'no phone'}): ${l.calls} calls, ${num(l.callMinutes, 2)} min, ${usd(l.totalCost, 4)}`
+      ),
+      '========================================================'
+    ];
+    return lines.join('\n');
+  };
 
-1. RAW COST BREAKDOWN (AT COST, USD)
---------------------------------------------------------
-- Plivo Telephony: ${usd(totalTelephonyMonthly)}/mo (${usd(telephonyPerMin, 4)}/min)
-- AI Voice Agent (speech-to-text, LLM, text-to-speech): ${usd(totalAiMonthly)}/mo (${usd(aiPerMin, 4)}/min)
-- Hosting (Backend + PostgreSQL): ${usd(hosting)}/mo
-
-TOTAL RAW OPERATIONAL EXPENSE: ${usd(totalRawMonthlyCost)} / month
-TOTAL RAW COST PER CALL: ${usd(rawCostPerCall)} / call
-
-2. RECOMMENDED CLIENT PRICING
---------------------------------------------------------
-Option A: Pay-Per-Call (${usd(clientPricePerCall)} / call)
-- Total Monthly Estimated Investment: ${usd(totalClientBillMonthly)}
-- Net Profit Margin: ${targetMargin}% (${usd(estimatedMonthlyProfit)} monthly profit)
-
-Option B: Monthly All-Inclusive Retainer
-- ${usd(totalClientBillMonthly + 150, 0)} / month for ${monthlyCalls} calls (includes $150 management fee)
-- Overage Rate: ${usd(clientPricePerCall * 1.1)} per call beyond package
-========================================================`;
-
-  const handleCopyProposal = () => {
-    navigator.clipboard.writeText(generateProposalText());
+  const handleCopySummary = () => {
+    navigator.clipboard.writeText(generateUsageSummary());
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
-
-  const totals = actual?.totals;
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12">
@@ -151,33 +184,37 @@ Option B: Monthly All-Inclusive Retainer
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono flex items-center gap-1.5">
-                <Zap className="w-3 h-3" /> REAL COSTS & CLIENT CALCULATOR
+                <Zap className="w-3 h-3" /> REAL USAGE & COSTS
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-              Call Costing & Client Unit Economics
+              Call Costing & Usage
             </h1>
             <p className="text-sm text-slate-400 mt-1 max-w-2xl">
-              Actual Plivo charges for every call, plus a calculator that uses your real per-minute rates to price client proposals.
+              Real usage totals from completed calls and Plivo billing data.
             </p>
           </div>
           <button
-            onClick={handleCopyProposal}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm text-slate-950 bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 transition-all shadow-lg shadow-cyan-500/20 shrink-0"
+            onClick={handleCopySummary}
+            disabled={!totals}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm text-slate-950 bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 disabled:opacity-50 transition-all shadow-lg shadow-cyan-500/20 shrink-0"
           >
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            <span>{copied ? 'Proposal Copied!' : 'Copy Client Pitch Proposal'}</span>
+            <span>{copied ? 'Summary Copied!' : 'Copy Usage Summary'}</span>
           </button>
         </div>
       </div>
 
-      {/* Actual costs */}
+      {/* Overall costing */}
       <div className="glass-card p-6 rounded-2xl border border-slate-800 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Activity className="w-5 h-5 text-emerald-400" />
-            Actual Costs (USD)
-          </h2>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Overall System Costing
+            </h2>
+            <p className="text-sm text-slate-400 mt-1">Actual totals across every call in the selected period (USD).</p>
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             {RANGE_OPTIONS.map(option => (
               <button
@@ -202,38 +239,21 @@ Option B: Monthly All-Inclusive Retainer
           </div>
         </div>
 
-        {actualError && (
-          <div className="text-sm text-rose-400">{actualError}</div>
-        )}
+        {actualError && <div className="text-sm text-rose-400">{actualError}</div>}
+        {!actualError && !totals && actualLoading && <div className="text-sm text-slate-500">Loading cost data...</div>}
 
         {!actualError && totals && (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-              <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-950/20">
-                <span className="text-emerald-400 text-xs font-medium uppercase tracking-wider block">Total Spend</span>
-                <div className="text-2xl font-black text-emerald-300 font-mono mt-1">{usd(totals.totalCost)}</div>
-                <span className="text-[11px] text-slate-400 font-mono">telephony + AI</span>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/80">
-                <span className="text-slate-400 text-xs font-medium uppercase tracking-wider block">Plivo Telephony</span>
-                <div className="text-2xl font-black text-white font-mono mt-1">{usd(totals.telephonyCost)}</div>
-                <span className="text-[11px] text-slate-500 font-mono">actual charges</span>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/80">
-                <span className="text-slate-400 text-xs font-medium uppercase tracking-wider block">AI Agent</span>
-                <div className="text-2xl font-black text-white font-mono mt-1">{usd(totals.aiCost)}</div>
-                <span className="text-[11px] text-slate-500 font-mono">billed min x configured rate</span>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/80">
-                <span className="text-slate-400 text-xs font-medium uppercase tracking-wider block">Avg / Billed Call</span>
-                <div className="text-2xl font-black text-white font-mono mt-1">{usd(totals.avgCostPerBilledCall, 4)}</div>
-                <span className="text-[11px] text-slate-500 font-mono">{usd(totals.avgCostPerMinute, 4)} / min</span>
-              </div>
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/80">
-                <span className="text-slate-400 text-xs font-medium uppercase tracking-wider block">Calls</span>
-                <div className="text-2xl font-black text-white font-mono mt-1">{totals.calls.toLocaleString()}</div>
-                <span className="text-[11px] text-slate-500 font-mono">{totals.billedCalls} billed · {totals.billedMinutes} min</span>
-              </div>
+            <div className="flex justify-end">
+              <span className="text-xs font-mono text-slate-400">{totals.billingCoverage}% billing coverage</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <StatTile label="Total Calls" value={num(totals.calls)} />
+              <StatTile label="Total Minutes" value={num(totals.callMinutes, 2)} />
+              <StatTile label="Billed Minutes" value={num(totals.billedMinutes, 2)} />
+              <StatTile label="Telephony Cost" value={usd(totals.telephonyCost, 4)} />
+              <StatTile label="AI Agent Cost" value={usd(totals.aiCost, 4)} />
+              <StatTile label="Total Cost" value={usd(totals.totalCost, 4)} accent />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -244,11 +264,11 @@ Option B: Monthly All-Inclusive Retainer
                     <div>
                       <div className="font-semibold text-white">{code === 'IN' ? 'India (+91)' : 'US / Other'}</div>
                       <div className="text-xs text-slate-400 font-mono">
-                        {r.calls} calls · {r.billedMinutes} billed min · AI rate {usd(actual.aiCostPerMin[code], 4)}/min
+                        {r.calls} calls · {num(r.billedMinutes, 2)} billed min
                       </div>
                     </div>
                     <div className="text-right font-mono">
-                      <div className="font-bold text-white">{usd(r.totalCost)}</div>
+                      <div className="font-bold text-white">{usd(r.totalCost, 4)}</div>
                       <div className="text-[11px] text-slate-500">{usd(r.avgCostPerMinute, 4)} / min</div>
                     </div>
                   </div>
@@ -263,25 +283,109 @@ Option B: Monthly All-Inclusive Retainer
                   {totals.costPending > 0 && `${totals.costPending} call(s) still waiting for Plivo billing data. `}
                   {totals.costUnavailable > 0 && `${totals.costUnavailable} call(s) have no Plivo billing record. `}
                   {actual.aiCostPerMin.IN === 0 && actual.aiCostPerMin.US === 0 &&
-                    'AI agent rate is not set yet (AI_COST_PER_MIN_IN / AI_COST_PER_MIN_US), so AI cost shows $0.'}
+                    'AI agent rate is not configured yet, so AI agent cost shows $0.'}
                 </span>
               </div>
             )}
           </>
         )}
-
-        {!actualError && !totals && actualLoading && (
-          <div className="text-sm text-slate-500">Loading cost data...</div>
-        )}
       </div>
 
-      {/* Calculator */}
+      {/* Lead-wise usage */}
+      {!actualError && totals && (
+        <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden">
+          <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <User className="w-5 h-5 text-cyan-400" />
+                Lead-wise Usage
+              </h2>
+              <p className="text-sm text-slate-400 mt-1">Calls, minutes and costs grouped by lead.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  value={leadSearch}
+                  onChange={(e) => { setLeadSearch(e.target.value); setLeadLimit(LEAD_PAGE_SIZE); }}
+                  placeholder="Search name, phone, company"
+                  className="pl-8 pr-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-sm text-white w-56"
+                />
+              </div>
+              <span className="text-xs font-mono text-slate-400 whitespace-nowrap">{filteredLeads.length} leads</span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-t border-b border-slate-800 bg-slate-900/60 text-slate-400 text-xs uppercase tracking-wider">
+                  <th className="text-left font-semibold px-6 py-3">Lead</th>
+                  <th className="text-right font-semibold px-4 py-3">Calls</th>
+                  <th className="text-right font-semibold px-4 py-3">Minutes</th>
+                  <th className="text-right font-semibold px-4 py-3">Billed Min</th>
+                  <th className="text-right font-semibold px-4 py-3">Telephony</th>
+                  <th className="text-right font-semibold px-4 py-3">AI Agent</th>
+                  <th className="text-right font-semibold px-6 py-3">Total Cost</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {filteredLeads.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-10 text-center text-slate-500">
+                      No call usage recorded for this period.
+                    </td>
+                  </tr>
+                )}
+                {filteredLeads.slice(0, leadLimit).map(l => (
+                  <tr key={l.leadId || l.name} className="hover:bg-slate-800/30">
+                    <td className="px-6 py-3">
+                      <div className="font-semibold text-white">{l.name}</div>
+                      <div className="text-xs text-slate-500 font-mono">
+                        {l.phone || '—'}{l.company ? ` · ${l.company}` : ''} · {l.region}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-200">{l.calls}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-200">{num(l.callMinutes, 2)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-200">{num(l.billedMinutes, 2)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-200">{usd(l.telephonyCost, 4)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-200">{usd(l.aiCost, 4)}</td>
+                    <td className="px-6 py-3 text-right font-mono font-bold text-emerald-300">{usd(l.totalCost, 4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {filteredLeads.length > leadLimit && (
+            <div className="p-4 text-center border-t border-slate-800">
+              <button
+                onClick={() => setLeadLimit(limit => limit + LEAD_PAGE_SIZE)}
+                className="text-sm text-cyan-400 hover:text-cyan-300"
+              >
+                Show more ({filteredLeads.length - leadLimit} remaining)
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Summary cards */}
+      {!actualError && totals && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <SummaryCard icon={MessageSquare} label="Calls With Billing Data" value={num(totals.callsWithBilling)} />
+          <SummaryCard icon={Timer} label="Average Minutes / Call" value={num(totals.avgMinutesPerCall, 2)} />
+          <SummaryCard icon={DollarSign} label="Spend / Billed Call" value={usd(totals.avgCostPerBilledCall, 4)} />
+        </div>
+      )}
+
+      {/* Cost estimator */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-5 space-y-6">
           <div className="glass-card p-6 rounded-2xl border border-slate-800 space-y-6">
             <h2 className="text-lg font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
               <Calculator className="w-5 h-5 text-cyan-400" />
-              Volume & Rate Inputs
+              Cost Estimator
             </h2>
 
             <div className="space-y-2">
@@ -361,41 +465,23 @@ Option B: Monthly All-Inclusive Retainer
                 <span className="text-[11px] text-slate-500 block">Render + database</span>
               </label>
             </div>
-
-            <div className="space-y-2 pt-2 border-t border-slate-800">
-              <div className="flex justify-between items-center text-sm">
-                <label className="text-slate-300 font-medium flex items-center gap-1">
-                  <TrendingUp className="w-4 h-4 text-purple-400" /> Client Profit Margin Markup
-                </label>
-                <span className="font-mono font-bold text-purple-400 text-base">{targetMargin}% Margin</span>
-              </div>
-              <input
-                type="range" min="20" max="80" step="5" value={targetMargin}
-                onChange={(e) => setTargetMargin(parseInt(e.target.value, 10))}
-                className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-400"
-              />
-            </div>
           </div>
         </div>
 
         <div className="lg:col-span-7 space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="glass-card p-5 rounded-2xl border border-slate-800 bg-slate-900/80">
-              <span className="text-slate-400 text-xs font-medium uppercase tracking-wider block">Raw Cost / Call</span>
-              <div className="text-2xl font-black text-white font-mono mt-1">{usd(rawCostPerCall)}</div>
-              <span className="text-[11px] text-slate-500 font-mono mt-1 block">{usd(rawCostPerMin, 3)} / min</span>
+              <span className="text-slate-400 text-xs font-medium uppercase tracking-wider block">Estimated Cost / Call</span>
+              <div className="text-2xl font-black text-white font-mono mt-1">{usd(rawCostPerCall, 4)}</div>
+            </div>
+            <div className="glass-card p-5 rounded-2xl border border-slate-800 bg-slate-900/80">
+              <span className="text-slate-400 text-xs font-medium uppercase tracking-wider block">Estimated Cost / Min</span>
+              <div className="text-2xl font-black text-white font-mono mt-1">{usd(rawCostPerMin, 4)}</div>
             </div>
             <div className="glass-card p-5 rounded-2xl border border-cyan-500/30 bg-cyan-950/20">
-              <span className="text-cyan-400 text-xs font-medium uppercase tracking-wider block">Total Monthly Cost</span>
+              <span className="text-cyan-400 text-xs font-medium uppercase tracking-wider block">Estimated Monthly Cost</span>
               <div className="text-2xl font-black text-cyan-300 font-mono mt-1">{usd(totalRawMonthlyCost)}</div>
               <span className="text-[11px] text-slate-400 font-mono mt-1 block">{totalMinutes.toLocaleString()} voice mins</span>
-            </div>
-            <div className="glass-card p-5 rounded-2xl border border-emerald-500/30 bg-emerald-950/20">
-              <span className="text-emerald-400 text-xs font-medium uppercase tracking-wider block">Client Billing Quote</span>
-              <div className="text-2xl font-black text-emerald-300 font-mono mt-1">{usd(clientPricePerCall)}</div>
-              <span className="text-[11px] text-emerald-400/80 font-mono mt-1 block">
-                {usd(estimatedMonthlyProfit, 0)} profit/mo ({targetMargin}%)
-              </span>
             </div>
           </div>
 
@@ -403,7 +489,7 @@ Option B: Monthly All-Inclusive Retainer
             <div className="p-5 border-b border-slate-800 flex items-center justify-between">
               <h3 className="font-bold text-white text-base flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-emerald-400" />
-                Line-Item Cost Breakdown
+                Estimated Monthly Breakdown
               </h3>
               <span className="text-xs font-mono text-slate-400">Monthly Expense</span>
             </div>
@@ -429,33 +515,6 @@ Option B: Monthly All-Inclusive Retainer
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl border border-purple-500/20 bg-purple-950/10 space-y-4">
-            <h3 className="font-bold text-white text-base flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-purple-400" />
-              Recommended Client Pricing Options to Quote
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="p-4 rounded-xl glass-card border border-slate-800 space-y-2">
-                <span className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-mono font-bold">OPTION A: PAY-PER-CALL</span>
-                <div className="text-xl font-extrabold text-white font-mono">
-                  {usd(clientPricePerCall)} <span className="text-xs font-normal text-slate-400">/ call</span>
-                </div>
-                <p className="text-slate-400 leading-relaxed">
-                  Charge your client per lead call, with a predictable {targetMargin}% margin.
-                </p>
-              </div>
-              <div className="p-4 rounded-xl glass-card border border-slate-800 space-y-2">
-                <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-mono font-bold">OPTION B: MONTHLY RETAINER</span>
-                <div className="text-xl font-extrabold text-white font-mono">
-                  {usd(totalClientBillMonthly + 150, 0)} <span className="text-xs font-normal text-slate-400">/ month</span>
-                </div>
-                <p className="text-slate-400 leading-relaxed">
-                  Includes {monthlyCalls.toLocaleString()} calls per month + $150 management fee. Overage charged at {usd(clientPricePerCall * 1.1)}/call.
-                </p>
-              </div>
             </div>
           </div>
         </div>

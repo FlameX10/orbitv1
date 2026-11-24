@@ -127,15 +127,20 @@ class CostService {
         status: true,
         plivoRegion: true,
         answeredAt: true,
+        duration: true,
         plivoTotalAmount: true,
         plivoBilledDuration: true,
-        costStatus: true
+        costStatus: true,
+        leadId: true,
+        lead: { select: { firstName: true, lastName: true, phone: true, company: true } }
       },
       orderBy: { createdAt: 'asc' }
     });
 
     const emptyBucket = () => ({
       calls: 0,
+      callsWithBilling: 0,
+      callMinutes: 0,
       billedCalls: 0,
       billedMinutes: 0,
       telephonyCost: 0,
@@ -146,20 +151,40 @@ class CostService {
     const totals = { ...emptyBucket(), costPending: 0, costUnavailable: 0 };
     const byRegion = { IN: emptyBucket(), US: emptyBucket() };
     const daily = new Map();
+    const byLead = new Map();
 
     for (const a of attempts) {
       const region = String(a.plivoRegion || '').toUpperCase() === 'IN' ? 'IN' : 'US';
       const day = formatInTimeZone(a.createdAt, env.defaultTimezone, 'yyyy-MM-dd');
       if (!daily.has(day)) daily.set(day, { date: day, ...emptyBucket() });
-      const buckets = [totals, byRegion[region], daily.get(day)];
+      const leadKey = a.leadId || 'unknown';
+      if (!byLead.has(leadKey)) {
+        const name = [a.lead?.firstName, a.lead?.lastName].filter(Boolean).join(' ');
+        byLead.set(leadKey, {
+          leadId: a.leadId || null,
+          name: name || 'Unknown lead',
+          phone: a.lead?.phone || null,
+          company: a.lead?.company || null,
+          region,
+          lastCallAt: a.createdAt,
+          ...emptyBucket()
+        });
+      }
+      const leadBucket = byLead.get(leadKey);
+      if (a.createdAt > leadBucket.lastCallAt) leadBucket.lastCallAt = a.createdAt;
+      const buckets = [totals, byRegion[region], daily.get(day), leadBucket];
 
-      buckets.forEach(b => { b.calls += 1; });
+      buckets.forEach(b => {
+        b.calls += 1;
+        b.callMinutes += (a.duration || 0) / 60;
+      });
 
       if (a.costStatus === 'FETCHED' || a.costStatus === 'NOT_BILLED') {
         const telephony = a.plivoTotalAmount || 0;
         const minutes = (a.plivoBilledDuration || 0) / 60;
         const ai = minutes * this._aiRateForRegion(region);
         buckets.forEach(b => {
+          b.callsWithBilling += 1;
           if (telephony > 0 || minutes > 0) b.billedCalls += 1;
           b.billedMinutes += minutes;
           b.telephonyCost += telephony;
@@ -176,6 +201,9 @@ class CostService {
     const round = (value, digits = 4) => Number(value.toFixed(digits));
     const finish = (b) => ({
       ...b,
+      callMinutes: round(b.callMinutes, 2),
+      avgMinutesPerCall: b.calls > 0 ? round(b.callMinutes / b.calls, 2) : 0,
+      billingCoverage: b.calls > 0 ? round((b.callsWithBilling / b.calls) * 100, 1) : 0,
       billedMinutes: round(b.billedMinutes, 2),
       telephonyCost: round(b.telephonyCost),
       aiCost: round(b.aiCost),
@@ -190,7 +218,10 @@ class CostService {
       aiCostPerMin: { IN: env.aiCostPerMin.in, US: env.aiCostPerMin.us },
       totals: finish(totals),
       byRegion: { IN: finish(byRegion.IN), US: finish(byRegion.US) },
-      daily: Array.from(daily.values()).map(finish)
+      daily: Array.from(daily.values()).map(finish),
+      byLead: Array.from(byLead.values())
+        .map(finish)
+        .sort((x, y) => y.totalCost - x.totalCost || y.calls - x.calls)
     };
   }
 }

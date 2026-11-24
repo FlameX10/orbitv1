@@ -120,11 +120,13 @@ describe('Cost service', () => {
   it('summarises telephony, AI estimate and per-region totals', async () => {
     env.aiCostPerMin.in = 0.05;
     env.aiCostPerMin.us = 0;
+    const asha = { firstName: 'Asha', lastName: 'Rao', phone: '+919800000001', company: null };
+    const john = { firstName: 'John', lastName: null, phone: '+14155550000', company: 'Acme' };
     vi.spyOn(prisma.callAttempt, 'findMany').mockResolvedValue([
-      { createdAt: new Date('2026-11-20T06:00:00Z'), plivoRegion: 'IN', costStatus: 'FETCHED', plivoTotalAmount: 0.02, plivoBilledDuration: 120 },
-      { createdAt: new Date('2026-11-20T07:00:00Z'), plivoRegion: 'IN', costStatus: 'NOT_BILLED', plivoTotalAmount: 0, plivoBilledDuration: 0 },
-      { createdAt: new Date('2026-11-21T07:00:00Z'), plivoRegion: 'US', costStatus: 'FETCHED', plivoTotalAmount: 0.0115, plivoBilledDuration: 60 },
-      { createdAt: new Date('2026-11-21T08:00:00Z'), plivoRegion: 'US', costStatus: null, plivoTotalAmount: null, plivoBilledDuration: null }
+      { createdAt: new Date('2026-11-20T06:00:00Z'), plivoRegion: 'IN', duration: 95, costStatus: 'FETCHED', plivoTotalAmount: 0.02, plivoBilledDuration: 120, leadId: 'lead-a', lead: asha },
+      { createdAt: new Date('2026-11-20T07:00:00Z'), plivoRegion: 'IN', duration: 0, costStatus: 'NOT_BILLED', plivoTotalAmount: 0, plivoBilledDuration: 0, leadId: 'lead-a', lead: asha },
+      { createdAt: new Date('2026-11-21T07:00:00Z'), plivoRegion: 'US', duration: 45, costStatus: 'FETCHED', plivoTotalAmount: 0.0115, plivoBilledDuration: 60, leadId: 'lead-b', lead: john },
+      { createdAt: new Date('2026-11-21T08:00:00Z'), plivoRegion: 'US', duration: null, costStatus: null, plivoTotalAmount: null, plivoBilledDuration: null, leadId: 'lead-b', lead: john }
     ]);
 
     try {
@@ -140,6 +142,14 @@ describe('Cost service', () => {
       expect(summary.byRegion.IN.totalCost).toBeCloseTo(0.12, 4);
       expect(summary.byRegion.US.totalCost).toBeCloseTo(0.0115, 4);
       expect(summary.daily.map(d => d.date)).toEqual(['2026-11-20', '2026-11-21']);
+      expect(summary.totals.callMinutes).toBeCloseTo(140 / 60, 2);
+      expect(summary.totals.callsWithBilling).toBe(3);
+      expect(summary.totals.billingCoverage).toBe(75);
+
+      expect(summary.byLead.map(l => l.name)).toEqual(['Asha Rao', 'John']);
+      expect(summary.byLead[0]).toMatchObject({ leadId: 'lead-a', calls: 2, phone: '+919800000001', region: 'IN' });
+      expect(summary.byLead[0].totalCost).toBeCloseTo(0.12, 4);
+      expect(summary.byLead[1]).toMatchObject({ calls: 2, company: 'Acme', region: 'US' });
     } finally {
       env.aiCostPerMin.in = 0;
       env.aiCostPerMin.us = 0;
