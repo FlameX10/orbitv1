@@ -65,7 +65,7 @@ export default function NewLeadModal({ isOpen, onClose }) {
       <div className="fixed inset-0 bg-black/65 backdrop-blur-md" onClick={onClose} />
 
       <div className="relative min-h-full flex items-center justify-center p-4 pointer-events-none">
-      <div className="relative card card-glow w-full max-w-[520px] my-6 animate-scale pointer-events-auto" style={{ background: 'rgba(18,20,28,0.96)', boxShadow: 'var(--shadow-pop)' }}>
+      <div className="relative card card-glow w-full max-w-[520px] my-6 animate-scale pointer-events-auto" style={{ background: 'var(--modal-bg)', boxShadow: 'var(--shadow-pop)' }}>
         <div className="flex items-start justify-between gap-4 px-7 pt-7">
           <div className="flex items-center gap-3.5">
             <span className="icon-tile" style={{ width: 42, height: 42, borderRadius: 13 }}><UserPlus className="w-5 h-5" /></span>
@@ -130,12 +130,12 @@ export default function NewLeadModal({ isOpen, onClose }) {
                     onClick={() => setFormData({ ...formData, delayOption: opt.value })}
                     className="rounded-xl px-2 py-2.5 text-center transition-all"
                     style={{
-                      background: active ? 'var(--iris-soft)' : 'rgba(255,255,255,0.025)',
+                      background: active ? 'var(--iris-soft)' : 'var(--fill-025)',
                       border: `1px solid ${active ? 'rgba(139,124,246,0.45)' : 'var(--border)'}`,
                       boxShadow: active ? '0 8px 20px -12px var(--iris-glow)' : 'none'
                     }}
                   >
-                    <div className="text-[13px] font-semibold" style={{ color: active ? '#fff' : 'var(--text)' }}>{opt.label}</div>
+                    <div className="text-[13px] font-semibold" style={{ color: active ? 'var(--text-strong)' : 'var(--text)' }}>{opt.label}</div>
                     <div className="text-[10.5px] faint">{opt.hint}</div>
                   </button>
                 );

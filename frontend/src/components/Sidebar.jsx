@@ -54,7 +54,7 @@ export function ClientLogo({ height = 30 }) {
   const mask = `url(${sankalpLogo}) center / contain no-repeat`;
   // Glow sits on the wrapper: a filter on the masked element itself would be clipped away.
   return (
-    <div style={{ width, height, filter: 'drop-shadow(0 6px 16px rgba(139,124,246,0.3))' }}>
+    <div style={{ width, height, filter: 'var(--client-logo-glow)' }}>
       <div
         role="img"
         aria-label={`${CLIENT_NAME} logo`}
@@ -64,7 +64,7 @@ export function ClientLogo({ height = 30 }) {
           height,
           WebkitMask: mask,
           mask,
-          background: 'linear-gradient(100deg, #ffffff 0%, #e4dfff 45%, #c9bfff 70%, #e8c47c 100%)'
+          background: 'var(--client-logo-fill)'
         }}
       />
     </div>
@@ -83,9 +83,9 @@ export function ClientMark({ size = 38 }) {
         width: size,
         height: size,
         borderRadius: size * 0.3,
-        background: 'linear-gradient(145deg, #1d1a33, #12111d)',
-        border: '1px solid rgba(139,124,246,0.35)',
-        boxShadow: '0 1px 0 rgba(255,255,255,0.08) inset, 0 8px 20px -10px rgba(139,124,246,0.6)'
+        background: 'var(--mark-tile-bg)',
+        border: '1px solid var(--logo-tile-border)',
+        boxShadow: 'var(--mark-tile-shadow)'
       }}
     >
       <span
@@ -96,7 +96,7 @@ export function ClientMark({ size = 38 }) {
           height: inner,
           WebkitMask: mask,
           mask,
-          background: 'linear-gradient(140deg, #ffffff 0%, #d9d2ff 55%, #e8c47c 100%)'
+          background: 'var(--client-mark-fill)'
         }}
       />
     </span>
@@ -120,21 +120,21 @@ export function BrandMark({ size = 38 }) {
         width: size,
         height: size,
         borderRadius: size * 0.3,
-        background: 'radial-gradient(120% 120% at 30% 20%, #26214a 0%, #15131f 55%, #0e0d16 100%)',
-        border: '1px solid rgba(139,124,246,0.35)',
-        boxShadow: '0 1px 0 rgba(255,255,255,0.08) inset, 0 10px 24px -12px rgba(139,124,246,0.75)'
+        background: 'var(--logo-tile-bg)',
+        border: '1px solid var(--logo-tile-border)',
+        boxShadow: 'var(--logo-tile-shadow)'
       }}
     >
       <svg viewBox="0 0 32 32" width={size * 0.72} height={size * 0.72} fill="none" aria-hidden="true">
         <defs>
           <linearGradient id={planet} x1="8" y1="8" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stopColor="#ffffff" />
-            <stop offset="1" stopColor="#b9aeff" />
+            <stop offset="0" style={{ stopColor: "var(--logo-planet-a)" }} />
+            <stop offset="1" style={{ stopColor: "var(--logo-planet-b)" }} />
           </linearGradient>
           <linearGradient id={ring} x1="3" y1="16" x2="29" y2="16" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stopColor="#c9a052" stopOpacity="0.55" />
-            <stop offset="0.5" stopColor="#f3d99b" />
-            <stop offset="1" stopColor="#e8c47c" />
+            <stop offset="0" style={{ stopColor: "var(--logo-ring-a)" }} stopOpacity="0.55" />
+            <stop offset="0.5" style={{ stopColor: "var(--logo-ring-b)" }} />
+            <stop offset="1" style={{ stopColor: "var(--logo-ring-c)" }} />
           </linearGradient>
           <clipPath id={back} clipPathUnits="userSpaceOnUse"><rect x="0" y="0" width="32" height="16" /></clipPath>
           <clipPath id={front} clipPathUnits="userSpaceOnUse"><rect x="0" y="16" width="32" height="16" /></clipPath>
@@ -146,13 +146,13 @@ export function BrandMark({ size = 38 }) {
         </g>
 
         {/* Planet */}
-        <circle cx="16" cy="16" r="7.4" fill="#15131f" stroke={`url(#${planet})`} strokeWidth="2.2" />
-        <circle cx="16" cy="16" r="2.6" fill="#ffffff" />
+        <circle cx="16" cy="16" r="7.4" style={{ fill: "var(--logo-planet-fill)" }} stroke={`url(#${planet})`} strokeWidth="2.2" />
+        <circle cx="16" cy="16" r="2.6" style={{ fill: "var(--logo-core)" }} />
 
         {/* Front half of the orbit + satellite */}
         <g transform="rotate(-24 16 16)">
           <ellipse cx="16" cy="16" rx="13" ry="4.6" stroke={`url(#${ring})`} strokeWidth="1.7" clipPath={`url(#${front})`} />
-          <circle cx="25.96" cy="18.96" r="1.7" fill="#f3d99b" />
+          <circle cx="25.96" cy="18.96" r="1.7" style={{ fill: "var(--logo-sat)" }} />
         </g>
       </svg>
     </div>
@@ -178,7 +178,7 @@ export default function Sidebar({ open, onClose }) {
       <aside
         className={`fixed lg:sticky top-0 left-0 z-50 h-screen w-[264px] shrink-0 flex flex-col transition-transform duration-300 lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}
         style={{
-          background: 'linear-gradient(180deg, rgba(14,16,23,0.92), rgba(9,10,15,0.96))',
+          background: 'var(--sidebar-bg)',
           borderRight: '1px solid var(--border)',
           backdropFilter: 'blur(20px)',
           transitionTimingFunction: 'var(--ease)'
@@ -230,7 +230,7 @@ export default function Sidebar({ open, onClose }) {
 
         {/* System + profile */}
         <div className="p-4 space-y-3">
-          <div className="rounded-2xl p-3.5" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid var(--border)' }}>
+          <div className="rounded-2xl p-3.5" style={{ background: 'var(--fill-025)', border: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-2.5 text-[12.5px] muted">
                 <span className={`live-dot ${connected ? '' : 'live-dot-warning'}`} />

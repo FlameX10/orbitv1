@@ -29,7 +29,7 @@ export function ToastProvider({ children }) {
         {toasts.map(t => {
           const { Icon, tone } = ICONS[t.type] || ICONS.info;
           return (
-            <div key={t.id} className="card animate-toast flex items-start gap-3 p-4" style={{ boxShadow: 'var(--shadow-pop)', background: 'rgba(24,27,38,0.92)' }}>
+            <div key={t.id} className="card animate-toast flex items-start gap-3 p-4" style={{ boxShadow: 'var(--shadow-pop)', background: 'var(--toast-bg)' }}>
               <Icon className="w-5 h-5 shrink-0 mt-0.5" style={{ color: tone }} />
               <div className="min-w-0 flex-1">
                 {t.title && <div className="font-semibold text-[13.5px]" style={{ color: 'var(--text)' }}>{t.title}</div>}

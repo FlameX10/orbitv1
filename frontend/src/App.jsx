@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { ToastProvider } from './context/ToastContext';
+import { ThemeProvider } from './context/ThemeContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import { BrandMark } from './components/Sidebar';
 
@@ -35,6 +36,7 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   return (
+    <ThemeProvider>
     <BrowserRouter>
       <AuthProvider>
         <SocketProvider>
@@ -69,5 +71,6 @@ export default function App() {
         </SocketProvider>
       </AuthProvider>
     </BrowserRouter>
+    </ThemeProvider>
   );
 }

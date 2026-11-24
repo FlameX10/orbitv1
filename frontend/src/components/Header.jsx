@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, Search, Menu, ChevronRight } from 'lucide-react';
+import { Plus, Search, Menu, ChevronRight, Sun, Moon } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
+import { useTheme } from '../context/ThemeContext';
 import NewLeadModal from './NewLeadModal';
 import { NAV_SECTIONS } from './Sidebar';
 
@@ -19,6 +20,7 @@ function useCrumbs(pathname) {
 
 export default function Header({ onMenu }) {
   const { connected } = useSocket();
+  const { theme, toggleTheme } = useTheme();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
@@ -50,7 +52,7 @@ export default function Header({ onMenu }) {
     <header
       className="sticky top-0 z-30 h-[72px] flex items-center gap-4 px-5 md:px-8"
       style={{
-        background: 'linear-gradient(180deg, rgba(7,8,12,0.85), rgba(7,8,12,0.6))',
+        background: 'var(--header-bg)',
         borderBottom: '1px solid var(--border)',
         backdropFilter: 'blur(18px) saturate(140%)'
       }}
@@ -93,12 +95,23 @@ export default function Header({ onMenu }) {
       {/* Realtime status */}
       <div
         className="hidden md:flex items-center gap-2 h-10 px-3.5 rounded-xl text-[12.5px] font-medium"
-        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}
+        style={{ background: 'var(--fill-03)', border: '1px solid var(--border)' }}
         title={connected ? 'Realtime updates connected' : 'Reconnecting to realtime updates'}
       >
         <span className={`live-dot ${connected ? '' : 'live-dot-warning'}`} />
         <span className="muted">{connected ? 'Live' : 'Reconnecting'}</span>
       </div>
+
+      <button
+        onClick={toggleTheme}
+        className="btn btn-secondary btn-icon theme-toggle"
+        title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+        aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+      >
+        <span key={theme} className="theme-toggle-icon">
+          {theme === 'light' ? <Moon className="w-[18px] h-[18px]" /> : <Sun className="w-[18px] h-[18px]" />}
+        </span>
+      </button>
 
       <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
         <Plus className="w-4 h-4" strokeWidth={2.6} />

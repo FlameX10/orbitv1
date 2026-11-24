@@ -160,7 +160,7 @@ export default function LeadDetail() {
               </div>
               <dl className="p-5 space-y-3 m-0">
                 {answers.map(([key, label]) => (
-                  <div key={key} className="rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid var(--border)' }}>
+                  <div key={key} className="rounded-xl px-4 py-3" style={{ background: 'var(--fill-025)', border: '1px solid var(--border)' }}>
                     <dt className="eyebrow">{label}</dt>
                     <dd className="m-0 mt-1 text-[13.5px]" style={{ color: 'var(--text)' }}>{String(lead.metadata[key])}</dd>
                   </div>
@@ -185,7 +185,7 @@ export default function LeadDetail() {
                   { icon: UserCheck, label: 'Decision maker', value: qual.authority },
                   { icon: CalendarRange, label: 'Timeline', value: qual.timeline }
                 ].map(({ icon: Icon, label, value }) => (
-                  <div key={label} className="flex items-start gap-3 rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid var(--border)' }}>
+                  <div key={label} className="flex items-start gap-3 rounded-xl px-4 py-3" style={{ background: 'var(--fill-025)', border: '1px solid var(--border)' }}>
                     <Icon className="w-4 h-4 mt-0.5 shrink-0" style={{ color: 'var(--iris)' }} />
                     <div className="min-w-0">
                       <div className="eyebrow">{label}</div>
@@ -195,7 +195,7 @@ export default function LeadDetail() {
                 ))}
                 {qual.summary && (
                   <div className="rounded-xl px-4 py-3.5" style={{ background: 'var(--iris-soft)', border: '1px solid rgba(139,124,246,0.22)' }}>
-                    <div className="eyebrow" style={{ color: '#b3a9ff' }}>AI summary</div>
+                    <div className="eyebrow" style={{ color: 'var(--iris-text)' }}>AI summary</div>
                     <p className="text-[13.5px] leading-relaxed mt-1 m-0" style={{ color: 'var(--text)' }}>{qual.summary}</p>
                   </div>
                 )}
@@ -225,7 +225,7 @@ export default function LeadDetail() {
                     onClick={() => setSelectedAttempt(attempt)}
                     className="w-full text-left rounded-xl px-4 py-3 flex items-center justify-between gap-3 transition-all"
                     style={{
-                      background: active ? 'var(--iris-soft)' : 'rgba(255,255,255,0.02)',
+                      background: active ? 'var(--iris-soft)' : 'var(--fill-02)',
                       border: `1px solid ${active ? 'rgba(139,124,246,0.35)' : 'var(--border)'}`,
                       boxShadow: active ? '0 8px 24px -14px var(--iris-glow)' : 'none'
                     }}

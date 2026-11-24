@@ -229,7 +229,7 @@ export default function PublicLeadForm() {
                       onClick={() => setFormData({ ...formData, timing: key })}
                       className="rounded-2xl p-4 text-left flex items-center justify-between gap-3 transition-all"
                       style={{
-                        background: active ? 'var(--iris-soft)' : 'rgba(255,255,255,0.025)',
+                        background: active ? 'var(--iris-soft)' : 'var(--fill-025)',
                         border: `1px solid ${active ? 'rgba(139,124,246,0.45)' : 'var(--border)'}`,
                         boxShadow: active ? '0 10px 26px -14px var(--iris-glow)' : 'none'
                       }}

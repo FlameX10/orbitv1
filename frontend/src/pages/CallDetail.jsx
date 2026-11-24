@@ -24,7 +24,7 @@ function formatCallCost(call) {
 
 function Metric({ icon: Icon, label, value, title }) {
   return (
-    <div className="rounded-2xl px-4 py-3.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }} title={title}>
+    <div className="rounded-2xl px-4 py-3.5" style={{ background: 'var(--fill-03)', border: '1px solid var(--border)' }} title={title}>
       <div className="flex items-center gap-2 eyebrow">
         <Icon className="w-3.5 h-3.5" /> {label}
       </div>
@@ -121,7 +121,7 @@ export default function CallDetail() {
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[12.5px] muted">
                 <span className="mono">{call.lead?.phone}</span>
                 {call.lead?.id && (
-                  <Link to={`/leads/${call.lead.id}`} className="hover:underline" style={{ color: '#b3a9ff' }}>View lead profile</Link>
+                  <Link to={`/leads/${call.lead.id}`} className="hover:underline" style={{ color: 'var(--iris-text)' }}>View lead profile</Link>
                 )}
               </div>
               <div className="mono faint mt-1.5 truncate" title={getProviderTracking(call)}>{getProviderTracking(call)}</div>

@@ -115,7 +115,7 @@ export default function Dashboard() {
               { label: 'Connected', value: overview?.connectedCalls || 0 },
               { label: 'Live now', value: overview?.activeCallsCount || 0 }
             ].map(item => (
-              <div key={item.label} className="rounded-2xl px-3 sm:px-4 py-3.5 min-w-0 sm:min-w-[104px]" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid var(--border)' }}>
+              <div key={item.label} className="rounded-2xl px-3 sm:px-4 py-3.5 min-w-0 sm:min-w-[104px]" style={{ background: 'var(--fill-035)', border: '1px solid var(--border)' }}>
                 <div className="text-[22px] sm:text-[24px] font-bold" style={{ color: 'var(--text)' }}><CountUp value={item.value} /></div>
                 <div className="text-[11px] sm:text-[11.5px] faint mt-0.5 truncate">{item.label}</div>
               </div>

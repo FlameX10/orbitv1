@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, CartesianGrid } from 'recharts';
 import { PieChart as PieIcon, BarChart3 } from 'lucide-react';
 import api from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 import { CountUp, EmptyState, PageHeader, PageLoader } from '../components/ui';
 
 const COLORS = ['#8b7cf6', '#34d399', '#e8c47c', '#2dd4bf', '#f87171', '#60a5fa', '#a4a9ba', '#f472b6'];
@@ -10,7 +11,7 @@ function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const item = payload[0];
   return (
-    <div className="card px-3.5 py-2.5" style={{ background: 'rgba(24,27,38,0.95)', boxShadow: 'var(--shadow-pop)' }}>
+    <div className="card px-3.5 py-2.5" style={{ background: 'var(--tooltip-bg)', boxShadow: 'var(--shadow-pop)' }}>
       <div className="text-[12px] faint">{label ?? item.name}</div>
       <div className="num font-bold text-[15px]" style={{ color: 'var(--text)' }}>{item.value}</div>
     </div>
@@ -20,6 +21,7 @@ function ChartTooltip({ active, payload, label }) {
 export default function Analytics() {
   const [chartsData, setChartsData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { theme } = useTheme();
 
   useEffect(() => {
     async function loadCharts() {
@@ -136,7 +138,7 @@ export default function Analytics() {
                     <stop offset="100%" stopColor="#5b46e6" stopOpacity={0.7} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.06)" />
+                <CartesianGrid vertical={false} stroke={theme === 'light' ? 'rgba(24,20,60,0.08)' : 'rgba(255,255,255,0.06)'} />
                 <XAxis dataKey="range" stroke="#6c7186" tickLine={false} axisLine={false} fontSize={12} />
                 <YAxis stroke="#6c7186" tickLine={false} axisLine={false} fontSize={12} allowDecimals={false} />
                 <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(139,124,246,0.08)' }} />

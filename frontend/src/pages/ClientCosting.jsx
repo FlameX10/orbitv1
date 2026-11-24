@@ -41,12 +41,12 @@ function StatTile({ label, value, decimals = 0, prefix = '', accent = false, ico
     <div
       className="rounded-2xl px-4 py-4"
       style={{
-        background: accent ? 'linear-gradient(140deg, rgba(139,124,246,0.16), rgba(232,196,124,0.06))' : 'rgba(255,255,255,0.03)',
+        background: accent ? 'linear-gradient(140deg, rgba(139,124,246,0.16), rgba(232,196,124,0.06))' : 'var(--fill-03)',
         border: `1px solid ${accent ? 'rgba(139,124,246,0.3)' : 'var(--border)'}`
       }}
     >
       <div className="flex items-center gap-1.5 eyebrow">{Icon && <Icon className="w-3.5 h-3.5" />}{label}</div>
-      <div className="text-[22px] font-bold mt-1.5" style={{ color: accent ? '#fff' : 'var(--text)' }}>
+      <div className="text-[22px] font-bold mt-1.5" style={{ color: accent ? 'var(--text-strong)' : 'var(--text)' }}>
         <CountUp value={value} decimals={decimals} prefix={prefix} />
       </div>
     </div>
@@ -223,7 +223,7 @@ export default function ClientCosting() {
               {['IN', 'US'].map(code => {
                 const r = actual.byRegion[code];
                 return (
-                  <div key={code} className="flex items-center justify-between rounded-2xl px-4 py-3.5" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid var(--border)' }}>
+                  <div key={code} className="flex items-center justify-between rounded-2xl px-4 py-3.5" style={{ background: 'var(--fill-025)', border: '1px solid var(--border)' }}>
                     <div className="flex items-center gap-3">
                       <RegionChip region={code} />
                       <div>

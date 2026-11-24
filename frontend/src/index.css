@@ -52,9 +52,150 @@
   --shadow-pop: 0 24px 60px -12px rgba(0, 0, 0, 0.75);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 
+  /* Theme-dependent fills & chrome (dark values = original literals) */
+  --fill-02: rgba(255, 255, 255, 0.02);
+  --fill-025: rgba(255, 255, 255, 0.025);
+  --fill-03: rgba(255, 255, 255, 0.03);
+  --fill-035: rgba(255, 255, 255, 0.035);
+  --hairline-06: rgba(255, 255, 255, 0.06);
+  --hover-border: rgba(255, 255, 255, 0.18);
+  --skeleton-bg: rgba(255, 255, 255, 0.05);
+  --skeleton-shine: rgba(255, 255, 255, 0.07);
+  --scroll-thumb: rgba(255, 255, 255, 0.08);
+  --seg-active-bg: var(--surface-3);
+  --seg-active-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 4px 12px -4px rgba(0, 0, 0, 0.6);
+  --text-strong: #ffffff;
+  --iris-text: #b3a9ff;
+  --text-gradient: linear-gradient(120deg, #fff 10%, #c9c1ff 45%, var(--gold) 95%);
+  --header-bg: linear-gradient(180deg, rgba(7,8,12,0.85), rgba(7,8,12,0.6));
+  --header-bg-soft: rgba(7,8,12,0.6);
+  --sidebar-bg: linear-gradient(180deg, rgba(14,16,23,0.92), rgba(9,10,15,0.96));
+  --modal-bg: rgba(18,20,28,0.96);
+  --toast-bg: rgba(24,27,38,0.92);
+  --tooltip-bg: rgba(24,27,38,0.95);
+  --orb-opacity: 1;
+
+  /* Logo tiles */
+  --logo-tile-bg: radial-gradient(120% 120% at 30% 20%, #26214a 0%, #15131f 55%, #0e0d16 100%);
+  --logo-tile-border: rgba(139,124,246,0.35);
+  --logo-tile-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 10px 24px -12px rgba(139,124,246,0.75);
+  --logo-planet-a: #ffffff;
+  --logo-planet-b: #b9aeff;
+  --logo-planet-fill: #15131f;
+  --logo-core: #ffffff;
+  --logo-ring-a: #c9a052;
+  --logo-ring-b: #f3d99b;
+  --logo-ring-c: #e8c47c;
+  --logo-sat: #f3d99b;
+  --mark-tile-bg: linear-gradient(145deg, #1d1a33, #12111d);
+  --mark-tile-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 8px 20px -10px rgba(139,124,246,0.6);
+  --client-mark-fill: linear-gradient(140deg, #ffffff 0%, #d9d2ff 55%, #e8c47c 100%);
+  --client-logo-fill: linear-gradient(100deg, #ffffff 0%, #e4dfff 45%, #c9bfff 70%, #e8c47c 100%);
+  --client-logo-glow: drop-shadow(0 6px 16px rgba(139,124,246,0.3));
+
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Plus Jakarta Sans', 'Inter', ui-sans-serif, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ==========================================================================
+   Light theme — "Porcelain & Iris". Applied only with <html data-theme="light">.
+   Dark (above) is the untouched default.
+   ========================================================================== */
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f5f4fa;
+  --bg-raised: #ffffff;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-solid: #ffffff;
+  --surface-2: #f1f0f7;
+  --surface-3: #e8e6f2;
+  --hover: rgba(24, 20, 60, 0.04);
+  --border: rgba(24, 20, 60, 0.09);
+  --border-strong: rgba(24, 20, 60, 0.14);
+
+  --text: #14141f;
+  --text-2: #4a4e62;
+  --text-3: #7b7f93;
+
+  --iris: #6a58ee;
+  --iris-strong: #5845e6;
+  --iris-soft: rgba(106, 88, 238, 0.1);
+  --iris-glow: rgba(106, 88, 238, 0.3);
+  --aqua: #0f9488;
+  --gold: #a87a1f;
+  --gold-soft: rgba(201, 160, 82, 0.16);
+
+  --success: #07936a;
+  --success-soft: rgba(7, 147, 106, 0.1);
+  --warning: #b45f06;
+  --warning-soft: rgba(217, 119, 6, 0.12);
+  --danger: #d42a2a;
+  --danger-soft: rgba(212, 42, 42, 0.08);
+  --info: #2563eb;
+  --info-soft: rgba(37, 99, 235, 0.09);
+  --neutral-soft: rgba(74, 78, 98, 0.08);
+
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.95) inset, 0 1px 2px rgba(24, 20, 60, 0.05), 0 14px 34px -18px rgba(24, 20, 60, 0.22);
+  --shadow-pop: 0 28px 64px -18px rgba(24, 20, 60, 0.32);
+
+  --fill-02: rgba(24, 20, 60, 0.02);
+  --fill-025: rgba(24, 20, 60, 0.025);
+  --fill-03: rgba(24, 20, 60, 0.03);
+  --fill-035: rgba(24, 20, 60, 0.035);
+  --hairline-06: rgba(24, 20, 60, 0.07);
+  --hover-border: rgba(24, 20, 60, 0.22);
+  --skeleton-bg: rgba(24, 20, 60, 0.06);
+  --skeleton-shine: rgba(255, 255, 255, 0.75);
+  --scroll-thumb: rgba(24, 20, 60, 0.16);
+  --seg-active-bg: #ffffff;
+  --seg-active-shadow: 0 1px 2px rgba(24, 20, 60, 0.08), 0 4px 12px -6px rgba(24, 20, 60, 0.22);
+  --text-strong: #14141f;
+  --iris-text: #5845e6;
+  --text-gradient: linear-gradient(120deg, #14141f 10%, #5845e6 55%, #a87a1f 95%);
+  --header-bg: linear-gradient(180deg, rgba(245, 244, 250, 0.9), rgba(245, 244, 250, 0.72));
+  --header-bg-soft: rgba(255, 255, 255, 0.72);
+  --sidebar-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(249, 248, 253, 0.97));
+  --modal-bg: rgba(255, 255, 255, 0.98);
+  --toast-bg: rgba(255, 255, 255, 0.97);
+  --tooltip-bg: rgba(255, 255, 255, 0.98);
+  --orb-opacity: 0.55;
+
+  --logo-tile-bg: radial-gradient(120% 120% at 30% 20%, #ffffff 0%, #f3f0ff 55%, #e6e0ff 100%);
+  --logo-tile-border: rgba(106, 88, 238, 0.28);
+  --logo-tile-shadow: 0 1px 0 #ffffff inset, 0 10px 22px -14px rgba(88, 69, 230, 0.55);
+  --logo-planet-a: #8a7cf8;
+  --logo-planet-b: #4a36d4;
+  --logo-planet-fill: #ffffff;
+  --logo-core: #4a36d4;
+  --logo-ring-a: #b8862b;
+  --logo-ring-b: #d8a84a;
+  --logo-ring-c: #a87a1f;
+  --logo-sat: #c9952f;
+  --mark-tile-bg: linear-gradient(145deg, #ffffff, #efebff);
+  --mark-tile-shadow: 0 1px 0 #ffffff inset, 0 8px 18px -12px rgba(88, 69, 230, 0.5);
+  --client-mark-fill: linear-gradient(140deg, #6a58ee 0%, #4a36d4 55%, #b8862b 100%);
+  --client-logo-fill: linear-gradient(100deg, #241a6e 0%, #4a36d4 45%, #6a58ee 70%, #b8862b 100%);
+  --client-logo-glow: drop-shadow(0 6px 14px rgba(88, 69, 230, 0.16));
+}
+
+:root[data-theme='light'] body {
+  background:
+    radial-gradient(1100px 600px at 8% -10%, rgba(106, 88, 238, 0.1), transparent 60%),
+    radial-gradient(900px 520px at 100% 0%, rgba(15, 148, 136, 0.05), transparent 60%),
+    radial-gradient(800px 600px at 50% 120%, rgba(201, 160, 82, 0.08), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* Smooth cross-fade only while the theme is being switched */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: background-color 380ms ease, color 380ms ease, border-color 380ms ease, box-shadow 380ms ease, fill 380ms ease, stop-color 380ms ease !important;
 }
 
 @layer base {
@@ -221,7 +362,7 @@
   }
 
   .text-gradient {
-    background: linear-gradient(120deg, #fff 10%, #c9c1ff 45%, var(--gold) 95%);
+    background: var(--text-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -282,7 +423,7 @@
 
   .btn-secondary:hover:not(:disabled) {
     background: var(--surface-3);
-    border-color: rgba(255, 255, 255, 0.18);
+    border-color: var(--hover-border);
   }
 
   .btn-ghost {
@@ -330,7 +471,7 @@
     height: 42px;
     padding: 0 14px;
     border-radius: 11px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--fill-03);
     border: 1px solid var(--border-strong);
     color: var(--text);
     font-size: 14px;
@@ -339,7 +480,7 @@
 
   .input::placeholder { color: var(--text-3); }
 
-  .input:hover { border-color: rgba(255, 255, 255, 0.18); }
+  .input:hover { border-color: var(--hover-border); }
 
   .input:focus {
     outline: none;
@@ -385,7 +526,7 @@
   .tone-warning { color: var(--warning); background: var(--warning-soft); border-color: rgba(251, 191, 36, 0.22); }
   .tone-danger  { color: var(--danger);  background: var(--danger-soft);  border-color: rgba(248, 113, 113, 0.22); }
   .tone-info    { color: var(--info);    background: var(--info-soft);    border-color: rgba(96, 165, 250, 0.22); }
-  .tone-iris    { color: #b3a9ff;        background: var(--iris-soft);    border-color: rgba(139, 124, 246, 0.25); }
+  .tone-iris    { color: var(--iris-text);        background: var(--iris-soft);    border-color: rgba(139, 124, 246, 0.25); }
   .tone-gold    { color: var(--gold);    background: var(--gold-soft);    border-color: rgba(232, 196, 124, 0.25); }
   .tone-neutral { color: var(--text-2);  background: var(--neutral-soft); border-color: var(--border); }
 
@@ -400,7 +541,7 @@
     font-weight: 600;
     border: 1px solid var(--border-strong);
     color: var(--text-2);
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--fill-03);
   }
 
   /* ---------- Tables ---------- */
@@ -425,7 +566,7 @@
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--text-3);
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--fill-02);
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
   }
@@ -516,7 +657,7 @@
     padding: 4px;
     gap: 2px;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--fill-03);
     border: 1px solid var(--border);
   }
 
@@ -534,8 +675,8 @@
 
   .segmented button[data-active='true'] {
     color: var(--text);
-    background: var(--surface-3);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 4px 12px -4px rgba(0, 0, 0, 0.6);
+    background: var(--seg-active-bg);
+    box-shadow: var(--seg-active-shadow);
   }
 
   /* ---------- Feedback ---------- */
@@ -543,7 +684,7 @@
     position: relative;
     overflow: hidden;
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--skeleton-bg);
   }
 
   .skeleton::after {
@@ -551,7 +692,7 @@
     position: absolute;
     inset: 0;
     transform: translateX(-100%);
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+    background: linear-gradient(90deg, transparent, var(--skeleton-shine), transparent);
     animation: shimmer 1.6s infinite;
   }
 
@@ -586,7 +727,7 @@
   .progress-track {
     height: 6px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--hairline-06);
     overflow: hidden;
   }
 
@@ -641,6 +782,18 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes spin-in {
+  from { opacity: 0; transform: rotate(-90deg) scale(0.6); }
+  to   { opacity: 1; transform: rotate(0deg) scale(1); }
+}
+
+.theme-toggle-icon {
+  display: inline-flex;
+  animation: spin-in 420ms var(--ease) both;
+}
+
+.theme-toggle svg { color: var(--gold); }
+
 .animate-page { animation: fade-up 520ms var(--ease) both; }
 .animate-fade { animation: fade-in 400ms var(--ease) both; }
 .animate-scale { animation: scale-in 320ms var(--ease) both; }
@@ -676,6 +829,7 @@
   position: absolute;
   border-radius: 999px;
   filter: blur(60px);
+  opacity: var(--orb-opacity);
   pointer-events: none;
   animation: float-orb 14s ease-in-out infinite;
 }
@@ -732,7 +886,7 @@
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--scroll-thumb);
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: padding-box;

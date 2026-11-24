@@ -28,7 +28,7 @@ export default function StatCard({ title, value, subtext, icon: Icon, color = 'i
         {Icon && (
           <span
             className="icon-tile"
-            style={{ color: accent.color, background: accent.glow, borderColor: 'rgba(255,255,255,0.06)' }}
+            style={{ color: accent.color, background: accent.glow, borderColor: 'var(--hairline-06)' }}
           >
             <Icon className="w-[18px] h-[18px]" />
           </span>
