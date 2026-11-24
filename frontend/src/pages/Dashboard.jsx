@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import StatCard from '../components/StatCard';
-import { CLIENT_NAME } from '../components/Sidebar';
+import { CLIENT_NAME, ClientLogo } from '../components/Sidebar';
 import QualificationBadge from '../components/QualificationBadge';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
@@ -93,8 +93,8 @@ export default function Dashboard() {
         <div className="orb" style={{ width: 260, height: 260, bottom: -150, right: 260, background: 'rgba(45,212,191,0.16)', animationDelay: '-6s' }} />
         <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-7">
           <div className="max-w-2xl">
+            <div className="mb-5"><ClientLogo height={34} /></div>
             <div className="flex items-center gap-2 mb-3">
-              <span className="pill tone-gold">{CLIENT_NAME} workspace</span>
               <span className="pill tone-iris"><Sparkles className="w-3.5 h-3.5" /> VENTA-AGENT</span>
               <span className="pill tone-neutral">
                 <span className={`live-dot ${activeCalls.length ? 'live-dot-iris' : ''}`} style={{ width: 6, height: 6 }} />

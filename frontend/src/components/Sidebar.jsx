@@ -13,9 +13,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
-import { Avatar } from './ui';
+import sankalpLogo from '../assets/sankalp-logo.png';
+import sankalpMark from '../assets/sankalp-mark.png';
 
 export const CLIENT_NAME = 'Sankalp';
+const LOGO_RATIO = 485 / 125; // width / height of sankalp-logo.png
 
 export const NAV_SECTIONS = [
   {
@@ -42,6 +44,64 @@ export const NAV_SECTIONS = [
     ]
   }
 ];
+
+/**
+ * Sankalp's logo (from sankalpcs.com), painted with the theme gradient via a CSS mask
+ * so it matches the dashboard instead of looking pasted in.
+ */
+export function ClientLogo({ height = 30 }) {
+  const width = Math.round(height * LOGO_RATIO);
+  const mask = `url(${sankalpLogo}) center / contain no-repeat`;
+  // Glow sits on the wrapper: a filter on the masked element itself would be clipped away.
+  return (
+    <div style={{ width, height, filter: 'drop-shadow(0 6px 16px rgba(139,124,246,0.3))' }}>
+      <div
+        role="img"
+        aria-label={`${CLIENT_NAME} logo`}
+        title={CLIENT_NAME}
+        style={{
+          width,
+          height,
+          WebkitMask: mask,
+          mask,
+          background: 'linear-gradient(100deg, #ffffff 0%, #e4dfff 45%, #c9bfff 70%, #e8c47c 100%)'
+        }}
+      />
+    </div>
+  );
+}
+
+/** Sankalp's symbol on a dark tile, used as the client admin's avatar. */
+export function ClientMark({ size = 38 }) {
+  const inner = Math.round(size * 0.62);
+  const mask = `url(${sankalpMark}) center / contain no-repeat`;
+  return (
+    <span
+      className="flex items-center justify-center shrink-0"
+      title={CLIENT_NAME}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size * 0.3,
+        background: 'linear-gradient(145deg, #1d1a33, #12111d)',
+        border: '1px solid rgba(139,124,246,0.35)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.08) inset, 0 8px 20px -10px rgba(139,124,246,0.6)'
+      }}
+    >
+      <span
+        role="img"
+        aria-label={`${CLIENT_NAME} logo`}
+        style={{
+          width: inner,
+          height: inner,
+          WebkitMask: mask,
+          mask,
+          background: 'linear-gradient(140deg, #ffffff 0%, #d9d2ff 55%, #e8c47c 100%)'
+        }}
+      />
+    </span>
+  );
+}
 
 export function BrandMark({ size = 38 }) {
   return (
@@ -107,25 +167,6 @@ export default function Sidebar({ open, onClose }) {
           </button>
         </div>
 
-        {/* Client workspace */}
-        <div className="px-4 pb-4">
-          <div
-            className="flex items-center gap-3 rounded-2xl px-3 py-2.5"
-            style={{ background: 'linear-gradient(135deg, rgba(139,124,246,0.12), rgba(232,196,124,0.05))', border: '1px solid rgba(139,124,246,0.2)' }}
-          >
-            <span
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-[13px] font-bold shrink-0"
-              style={{ fontFamily: 'var(--font-display)', color: '#1a1406', background: 'linear-gradient(140deg, #f3d99b, #c9a052)' }}
-            >
-              S
-            </span>
-            <div className="min-w-0 leading-tight">
-              <div className="text-[13px] font-semibold truncate" style={{ color: 'var(--text)' }}>{CLIENT_NAME}</div>
-              <div className="text-[11px] faint">Client workspace</div>
-            </div>
-          </div>
-        </div>
-
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-4 pt-2 pb-4 space-y-7 scroll-thin">
           {NAV_SECTIONS.map(section => (
@@ -165,7 +206,7 @@ export default function Sidebar({ open, onClose }) {
           </div>
 
           <div className="flex items-center gap-3 px-1.5">
-            <Avatar name={name} size={36} />
+            <ClientMark size={38} />
             <div className="min-w-0 flex-1 leading-tight">
               <div className="text-[13px] font-semibold truncate" style={{ color: 'var(--text)' }}>{name}</div>
               <div className="text-[11.5px] faint truncate">{CLIENT_NAME} · Admin</div>
