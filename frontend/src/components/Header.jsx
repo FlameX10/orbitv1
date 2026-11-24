@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, Search, Menu, ChevronRight, Sun, Moon } from 'lucide-react';
+import { Search, Menu, ChevronRight, Sun, Moon } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import { useTheme } from '../context/ThemeContext';
-import NewLeadModal from './NewLeadModal';
 import { NAV_SECTIONS } from './Sidebar';
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -21,7 +20,6 @@ function useCrumbs(pathname) {
 export default function Header({ onMenu }) {
   const { connected } = useSocket();
   const { theme, toggleTheme } = useTheme();
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -112,13 +110,6 @@ export default function Header({ onMenu }) {
           {theme === 'light' ? <Moon className="w-[18px] h-[18px]" /> : <Sun className="w-[18px] h-[18px]" />}
         </span>
       </button>
-
-      <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
-        <Plus className="w-4 h-4" strokeWidth={2.6} />
-        <span className="hidden sm:inline">New Lead</span>
-      </button>
-
-      <NewLeadModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </header>
   );
 }

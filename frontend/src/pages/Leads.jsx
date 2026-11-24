@@ -144,7 +144,7 @@ export default function Leads() {
                     <EmptyState
                       icon={Users}
                       title={search || statusFilter ? 'No leads match your filters' : 'No leads yet'}
-                      text={search || statusFilter ? 'Try a different search or status.' : 'Use “New Lead” in the top bar to add one, or wait for the next website enquiry.'}
+                      text={search || statusFilter ? 'Try a different search or status.' : 'New website enquiries appear here automatically. You can also add one from Live Call Studio.'}
                     />
                   </td>
                 </tr>
