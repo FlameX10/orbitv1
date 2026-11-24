@@ -1,7 +1,7 @@
 import React from 'react';
 import { Bot, User, Info, MessageSquareText } from 'lucide-react';
 import { format } from 'date-fns';
-import { EmptyState } from './ui';
+import { EmptyState, realMessages } from './ui';
 
 const AGENT_SPEAKERS = ['ai_agent', 'ai agent', 'agent', 'ai', 'assistant', 'bot'];
 const CUSTOMER_SPEAKERS = ['customer', 'user', 'human', 'caller', 'lead'];
@@ -20,8 +20,9 @@ function resolveSpeaker(msg) {
   return { isAI: msg.role === 'AI', text: content };
 }
 
-export default function TranscriptViewer({ messages = [] }) {
-  if (!messages || messages.length === 0) {
+export default function TranscriptViewer({ messages: rawMessages = [] }) {
+  const messages = realMessages(rawMessages);
+  if (messages.length === 0) {
     return (
       <EmptyState
         icon={MessageSquareText}

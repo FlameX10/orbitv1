@@ -4,7 +4,7 @@ import { ArrowLeft, Sparkles, Timer, Wallet, CalendarDays, PhoneOff, MessageSqua
 import TranscriptViewer from '../components/TranscriptViewer';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
-import { Avatar, EmptyState, PageLoader, RegionChip, StatusPill, formatDateTime, formatDuration, humanize } from '../components/ui';
+import { Avatar, EmptyState, PageLoader, RegionChip, StatusPill, formatDateTime, formatDuration, humanize, realMessages } from '../components/ui';
 
 function getProviderTracking(call) {
   if (call.plivoCallUuid) return 'Call UUID: ' + call.plivoCallUuid;
@@ -145,7 +145,7 @@ export default function CallDetail() {
             title={call.plivoTotalRate != null ? `Rate: $${call.plivoTotalRate}/min, billed ${call.plivoBilledDuration || 0}s` : undefined}
           />
           <Metric icon={CalendarDays} label="Started" value={formatDateTime(call.createdAt)} />
-          <Metric icon={MessageSquareText} label="Messages" value={call.messages?.length || 0} />
+          <Metric icon={MessageSquareText} label="Messages" value={realMessages(call.messages).length} />
         </div>
       </section>
 
@@ -185,9 +185,9 @@ export default function CallDetail() {
             </div>
             <dl className="p-6 space-y-3.5 text-[13px] m-0">
               {[
-                ['Agent', call.agent?.name || 'Default Rep'],
+                ['Agent', 'VENTA-AGENT'],
                 ['Trigger', call.reason?.startsWith('callback_') ? 'Scheduled callback' : humanize(call.reason)],
-                ['Messages', call.messages?.length || 0]
+                ['Messages', realMessages(call.messages).length]
               ].map(([k, v]) => (
                 <div key={k} className="flex items-center justify-between gap-4">
                   <dt className="faint">{k}</dt>

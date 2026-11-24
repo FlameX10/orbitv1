@@ -20,11 +20,11 @@ export function AuthProvider({ children }) {
           }
         } catch (err) {
           // In dev mode, fall back to mock admin user
-          setUser({ id: 'dev-user', name: 'Dev Admin', email: 'admin@vedron.dev', role: 'ADMIN' });
+          setUser({ id: 'dev-user', name: 'Sankalp Admin', email: '', role: 'ADMIN' });
         }
       } else {
-        // Auto sign-in as Dev Admin in dev mode if token absent
-        setUser({ id: 'dev-user', name: 'Dev Admin', email: 'admin@vedron.dev', role: 'ADMIN' });
+        // Auto sign-in as the workspace admin in dev mode if token absent
+        setUser({ id: 'dev-user', name: 'Sankalp Admin', email: '', role: 'ADMIN' });
       }
       setLoading(false);
     }

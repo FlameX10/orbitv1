@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { BrandMark } from '../components/Sidebar';
 
 export default function Login() {
-  const [email, setEmail] = useState('admin@vedron.dev');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -59,6 +59,7 @@ export default function Login() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   className="input input-icon"
+                  placeholder="you@company.com"
                   autoComplete="email"
                 />
               </div>

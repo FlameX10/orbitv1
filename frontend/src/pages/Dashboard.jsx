@@ -12,11 +12,11 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import StatCard from '../components/StatCard';
+import { CLIENT_NAME } from '../components/Sidebar';
 import QualificationBadge from '../components/QualificationBadge';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
-import { useAuth } from '../context/AuthContext';
-import { Avatar, CountUp, EmptyState, PageLoader, StatusPill, formatDuration, timeAgo } from '../components/ui';
+import { Avatar, CountUp, EmptyState, PageLoader, StatusPill, formatDuration, realMessages, timeAgo } from '../components/ui';
 
 function greeting() {
   const h = new Date().getHours();
@@ -49,7 +49,6 @@ export default function Dashboard() {
   const [recentLeads, setRecentLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const { lastEvent } = useSocket();
-  const { user } = useAuth();
   const navigate = useNavigate();
 
   const fetchDashboardData = async () => {
@@ -85,7 +84,6 @@ export default function Dashboard() {
     return <PageLoader label="Loading overview" />;
   }
 
-  const firstName = (user?.name || '').split(' ')[0];
 
   return (
     <div className="space-y-7">
@@ -96,14 +94,15 @@ export default function Dashboard() {
         <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-7">
           <div className="max-w-2xl">
             <div className="flex items-center gap-2 mb-3">
-              <span className="pill tone-iris"><Sparkles className="w-3.5 h-3.5" /> AI Voice Agent</span>
+              <span className="pill tone-gold">{CLIENT_NAME} workspace</span>
+              <span className="pill tone-iris"><Sparkles className="w-3.5 h-3.5" /> VENTA-AGENT</span>
               <span className="pill tone-neutral">
                 <span className={`live-dot ${activeCalls.length ? 'live-dot-iris' : ''}`} style={{ width: 6, height: 6 }} />
                 {activeCalls.length ? `${activeCalls.length} live now` : 'Standing by'}
               </span>
             </div>
             <h1 className="text-[30px] md:text-[36px] font-bold tracking-tight leading-[1.1]">
-              <span className="text-gradient">{greeting()}{firstName ? `, ${firstName}` : ''}.</span>
+              <span className="text-gradient">{greeting()}, {CLIENT_NAME} team.</span>
             </h1>
             <p className="page-subtitle text-[15px]">
               Your AI agent is qualifying website leads around the clock — calling within seconds, speaking English and Hindi, and handing your sales team ready-to-close conversations.
@@ -204,7 +203,7 @@ export default function Dashboard() {
                       <StatusPill status={call.status} />
                     </div>
                     <p className="text-[12.5px] muted mt-3 line-clamp-2 italic">
-                      “{call.messages[0]?.content || 'Conversation in progress…'}”
+                      “{(realMessages(call.messages)[0]?.content || 'Conversation in progress…').replace(/^\s*\[[^\]]+\]\s*/, '')}”
                     </p>
                   </button>
                 );

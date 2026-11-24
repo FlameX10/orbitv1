@@ -183,6 +183,20 @@ export function CountUp({ value = 0, decimals = 0, prefix = '', suffix = '', dur
   return <span className="num">{prefix}{formatted}{suffix}</span>;
 }
 
+/* ---------- Transcript helpers ---------- */
+
+// The backend logs a legacy default greeting ("Hi, this is Jordan calling from
+// Vedron Dev Co…") when a call starts. It is never spoken on Plivo calls, so the
+// UI hides it.
+export function isPlaceholderGreeting(msg) {
+  const content = typeof msg?.content === 'string' ? msg.content : '';
+  return msg?.role === 'AI' && !/^\s*\[/.test(content) && /vedron dev co|this is jordan calling/i.test(content);
+}
+
+export function realMessages(messages = []) {
+  return (messages || []).filter(m => !isPlaceholderGreeting(m));
+}
+
 /* ---------- Formatting ---------- */
 
 export function formatDuration(seconds) {

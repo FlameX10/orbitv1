@@ -120,7 +120,7 @@ export default function ClientCosting() {
     if (!totals) return 'No usage data loaded.';
     const lines = [
       '========================================================',
-      `VENTA AI VOICE AGENT - USAGE SUMMARY (${rangeLabel})`,
+      `ORBIT AI VOICE AGENT · SANKALP — USAGE SUMMARY (${rangeLabel})`,
       '========================================================',
       `Total calls: ${num(totals.calls)}`,
       `Total minutes: ${num(totals.callMinutes, 2)}`,

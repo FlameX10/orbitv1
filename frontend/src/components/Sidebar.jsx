@@ -15,6 +15,8 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { Avatar } from './ui';
 
+export const CLIENT_NAME = 'Sankalp';
+
 export const NAV_SECTIONS = [
   {
     label: 'Workspace',
@@ -65,7 +67,9 @@ export function BrandMark({ size = 38 }) {
 export default function Sidebar({ open, onClose }) {
   const { user } = useAuth();
   const { connected } = useSocket();
-  const name = user?.name || 'Admin';
+  // Placeholder dev user names are shown as the client admin.
+  const rawName = user?.name || '';
+  const name = !rawName || /dev admin/i.test(rawName) ? `${CLIENT_NAME} Admin` : rawName;
 
   return (
     <>
@@ -93,12 +97,33 @@ export default function Sidebar({ open, onClose }) {
               <div className="font-bold text-[16px] tracking-tight" style={{ fontFamily: 'var(--font-display)', color: 'var(--text)' }}>
                 Orbit
               </div>
-              <div className="text-[11.5px] faint">AI Voice Qualification</div>
+              <div className="text-[11.5px] faint">
+                by <span className="font-semibold" style={{ color: 'var(--gold)' }}>Logicawork</span>
+              </div>
             </div>
           </div>
           <button className="btn btn-ghost btn-icon lg:hidden" onClick={onClose} aria-label="Close menu">
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Client workspace */}
+        <div className="px-4 pb-4">
+          <div
+            className="flex items-center gap-3 rounded-2xl px-3 py-2.5"
+            style={{ background: 'linear-gradient(135deg, rgba(139,124,246,0.12), rgba(232,196,124,0.05))', border: '1px solid rgba(139,124,246,0.2)' }}
+          >
+            <span
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-[13px] font-bold shrink-0"
+              style={{ fontFamily: 'var(--font-display)', color: '#1a1406', background: 'linear-gradient(140deg, #f3d99b, #c9a052)' }}
+            >
+              S
+            </span>
+            <div className="min-w-0 leading-tight">
+              <div className="text-[13px] font-semibold truncate" style={{ color: 'var(--text)' }}>{CLIENT_NAME}</div>
+              <div className="text-[11px] faint">Client workspace</div>
+            </div>
+          </div>
         </div>
 
         {/* Navigation */}
@@ -143,8 +168,12 @@ export default function Sidebar({ open, onClose }) {
             <Avatar name={name} size={36} />
             <div className="min-w-0 flex-1 leading-tight">
               <div className="text-[13px] font-semibold truncate" style={{ color: 'var(--text)' }}>{name}</div>
-              <div className="text-[11.5px] faint truncate">{user?.email}</div>
+              <div className="text-[11.5px] faint truncate">{CLIENT_NAME} · Admin</div>
             </div>
+          </div>
+
+          <div className="text-center text-[10.5px] faint pt-1" style={{ letterSpacing: '0.04em' }}>
+            Crafted by <span className="font-semibold" style={{ color: 'var(--text-2)' }}>Logicawork</span>
           </div>
         </div>
       </aside>
