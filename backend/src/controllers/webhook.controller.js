@@ -1301,8 +1301,6 @@ class WebhookController {
         additional_notes,
         callback_day,
         callback_time,
-        time_text,
-        timeText,
         disposition,
         opt_out
       } = data;
@@ -1363,17 +1361,10 @@ class WebhookController {
         }
       }
 
-      // Schedule callback if callback_time, callback_day, or time_text passed
-      const combinedTimeText = callback_time || callback_day || time_text || timeText;
-      if (combinedTimeText && lead.status !== 'DO_NOT_CALL') {
-        const scheduledFor = schedulingService.resolveCallbackTime(combinedTimeText);
-        await schedulingService.scheduleCallback({
-          leadId: lead.id,
-          callAttemptId: callAttemptId || null,
-          scheduledFor,
-          reason: `Requested callback during AI qualification turn: ${combinedTimeText}`
-        });
-      }
+      // callback_day / callback_time here are the caller's preferred time for the
+      // human sales team to make contact. They are stored in lead metadata only and
+      // never schedule an AI callback; only the schedule_callback tool
+      // (/plivo/callback, for busy / call-me-later requests) does that.
 
       logger.info('Plivo qualification persisted successfully', { endpoint: '/api/webhooks/plivo/qualification', status: 200, leadId: lead.id, callAttemptId });
       return res.json({
