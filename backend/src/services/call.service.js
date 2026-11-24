@@ -442,6 +442,20 @@ class CallService {
         leadId: updatedAttempt.leadId
     });
 
+    // A dashboard-ended call skips the hangup webhook's processing, so queue
+    // the cost fetch here. Never let this fail the termination request.
+    if (attempt.plivoCallUuid) {
+      try {
+        const { scheduleJob, JOB_QUEUES } = require('../config/queue');
+        await scheduleJob(JOB_QUEUES.FETCH_CALL_COST, {
+          callAttemptId: updatedAttempt.id,
+          fetchAttempt: 1
+        }, { startAfter: 120, retryLimit: 0 });
+      } catch (err) {
+        logger.warn('Could not enqueue call cost fetch after termination', { callAttemptId: updatedAttempt.id, error: err.message });
+      }
+    }
+
     return updatedAttempt;
   }
 }

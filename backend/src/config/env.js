@@ -61,6 +61,13 @@ module.exports = {
     model: process.env.LLM_MODEL || 'gpt-4o-mini'
   },
   
+  // Per-minute AI agent cost (STT + LLM + TTS / Plivo AI platform), in USD, by region.
+  // Not exposed per call by Plivo's API, so it is configured here from the Plivo invoice.
+  aiCostPerMin: {
+    in: parseFloat(process.env.AI_COST_PER_MIN_IN || '0') || 0,
+    us: parseFloat(process.env.AI_COST_PER_MIN_US || '0') || 0
+  },
+
   maxConcurrentCalls: parseInt(process.env.MAX_CONCURRENT_CALLS || '10', 10),
   maxCallAttempts: parseInt(process.env.MAX_CALL_ATTEMPTS || '3', 10),
   staleCallSeconds: parseInt(process.env.STALE_CALL_SECONDS || '1800', 10),

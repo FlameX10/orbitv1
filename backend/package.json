@@ -12,6 +12,7 @@
     "prisma:push": "npx prisma db push",
     "db:seed": "node prisma/seed.js",
     "db:clean": "node src/scripts/resetDb.js",
+    "costs:backfill": "node src/scripts/backfillCallCosts.js",
     "test": "npx vitest run --passWithNoTests"
   },
   "dependencies": {

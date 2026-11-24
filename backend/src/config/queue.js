@@ -9,7 +9,8 @@ let createBoss = (options) => new PgBoss(options);
 const JOB_QUEUES = {
   CALL_LEAD: 'call-lead-queue',
   CALLBACK_LEAD: 'callback-lead-queue',
-  POST_CALL_PROCESSING: 'post-call-processing-queue'
+  POST_CALL_PROCESSING: 'post-call-processing-queue',
+  FETCH_CALL_COST: 'fetch-call-cost-queue'
 };
 
 async function initQueue() {
@@ -33,6 +34,7 @@ async function initQueue() {
       await boss.createQueue(JOB_QUEUES.CALL_LEAD);
       await boss.createQueue(JOB_QUEUES.CALLBACK_LEAD);
       await boss.createQueue(JOB_QUEUES.POST_CALL_PROCESSING);
+      await boss.createQueue(JOB_QUEUES.FETCH_CALL_COST);
 
       bossInstance = boss;
       logger.info('pg-boss queue initialized successfully on PostgreSQL');

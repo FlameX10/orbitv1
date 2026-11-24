@@ -14,6 +14,13 @@ function getProviderTracking(call) {
   return 'Provider ID: Unavailable';
 }
 
+function formatCallCost(call) {
+  if (call.costStatus === 'FETCHED') return `$${Number(call.plivoTotalAmount || 0).toFixed(4)}`;
+  if (call.costStatus === 'NOT_BILLED') return 'Not billed';
+  if (call.costStatus === 'UNAVAILABLE') return 'Unavailable';
+  return 'Pending';
+}
+
 export default function CallDetail() {
   const { id } = useParams();
   const [call, setCall] = useState(null);
@@ -96,6 +103,9 @@ export default function CallDetail() {
 
         <div className="flex items-center gap-4 text-xs font-mono text-slate-300">
           <div>Duration: <strong className="text-white">{call.duration || 0}s</strong></div>
+          <div title={call.plivoTotalRate != null ? `Rate: $${call.plivoTotalRate}/min, billed ${call.plivoBilledDuration || 0}s` : undefined}>
+            Call cost: <strong className="text-white">{formatCallCost(call)}</strong>
+          </div>
           <div>Started: <strong className="text-white">{new Date(call.createdAt).toLocaleString()}</strong></div>
           {isActive && (
             <button

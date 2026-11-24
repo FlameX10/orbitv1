@@ -2,6 +2,7 @@ const { initQueue, JOB_QUEUES } = require('../config/queue');
 const logger = require('../config/logger');
 const callService = require('../services/call.service');
 const qualificationService = require('../services/qualification.service');
+const costService = require('../services/cost.service');
 const prisma = require('../config/prisma');
 const env = require('../config/env');
 const { broadcastEvent } = require('../websocket/socket.server');
@@ -113,6 +114,27 @@ async function startWorkers() {
         logger.info(`[Worker] Post-call evaluation completed for CallAttempt ID [${callAttemptId}]`);
       } catch (err) {
         logger.error(`[Worker] Post-call processing failed for [${callAttemptId}]`, { error: err.message });
+      }
+    }
+  });
+
+  // 4. Worker for FETCH_CALL_COST jobs: store the real Plivo charge per call.
+  // Failures here never affect call status or qualification.
+  await boss.work(JOB_QUEUES.FETCH_CALL_COST, { teamSize: 2 }, async (jobs) => {
+    for (const job of jobs) {
+      const { callAttemptId, fetchAttempt = 1 } = job.data;
+      try {
+        const result = await costService.fetchAndStoreCallCost(callAttemptId, { fetchAttempt });
+        if (result.retry) {
+          const delay = costService.getRetryDelaySeconds(fetchAttempt);
+          await boss.send(JOB_QUEUES.FETCH_CALL_COST, {
+            callAttemptId,
+            fetchAttempt: fetchAttempt + 1
+          }, { startAfter: delay, retryLimit: 0 });
+          logger.info(`[Worker] Call cost not ready for [${callAttemptId}]. Retrying in ${delay}s.`);
+        }
+      } catch (err) {
+        logger.error(`[Worker] FETCH_CALL_COST failed for [${callAttemptId}]`, { error: err.message });
       }
     }
   });

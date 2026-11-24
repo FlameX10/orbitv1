@@ -981,6 +981,17 @@ class WebhookController {
         callAttemptId: updatedAttempt.id
       }, { startAfter: 60 });
 
+      // Fetch the real Plivo charge once the CDR is available. A failure to
+      // enqueue must never fail the hangup webhook.
+      try {
+        await queue.scheduleJob(JOB_QUEUES.FETCH_CALL_COST, {
+          callAttemptId: updatedAttempt.id,
+          fetchAttempt: 1
+        }, { startAfter: 120, retryLimit: 0 });
+      } catch (costErr) {
+        logger.warn('Could not enqueue call cost fetch', { callAttemptId: updatedAttempt.id, error: costErr.message });
+      }
+
       logger.info('Plivo Hangup Webhook processed successfully', { endpoint: '/api/webhooks/plivo/hangup', status: 200, callAttemptId: updatedAttempt.id, nextStatus: updatedAttempt.status, duration: finalDuration });
       await this._finishWebhookEvent(webhookEvent.eventId);
       return res.status(200).send('OK');

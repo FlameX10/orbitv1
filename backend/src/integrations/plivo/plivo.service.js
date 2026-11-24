@@ -167,6 +167,53 @@ class PlivoService {
   }
 
   /**
+   * Fetch the billed cost of a completed call from the Plivo CDR.
+   * Endpoint: GET https://api.plivo.com/v1/Account/{auth_id}/Call/{call_uuid}/
+   * Returns { found: false } when Plivo has no CDR for the UUID (404).
+   */
+  async getCallCost({ callUuid, region = 'US' }) {
+    if (!callUuid) {
+      throw new Error('callUuid is required to fetch call cost.');
+    }
+
+    const regionKey = String(region).toLowerCase() === 'in' ? 'in' : 'us';
+    const config = this.getRegionalConfig(regionKey);
+
+    if (!config.authId || !config.authToken) {
+      throw new Error(`Cannot fetch call cost: Plivo Auth ID / Token missing for region [${config.region}].`);
+    }
+
+    const url = `https://api.plivo.com/v1/Account/${config.authId}/Call/${encodeURIComponent(callUuid)}/`;
+    const toNumber = (value) => {
+      if (value === undefined || value === null || value === '') return null;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    try {
+      const response = await axios.get(url, {
+        auth: { username: config.authId, password: config.authToken },
+        timeout: 8000
+      });
+      const cdr = response.data || {};
+      return {
+        found: true,
+        totalAmount: toNumber(cdr.total_amount),
+        totalRate: toNumber(cdr.total_rate),
+        billedDuration: toNumber(cdr.billed_duration),
+        billDuration: toNumber(cdr.bill_duration),
+        region: config.region
+      };
+    } catch (err) {
+      if (err.response?.status === 404) {
+        return { found: false, region: config.region };
+      }
+      const errorDetail = err.response?.data?.error || err.response?.data?.message || err.message;
+      throw new Error(`Plivo [${config.region}] CDR fetch failed: ${errorDetail}`);
+    }
+  }
+
+  /**
    * Terminate an active Plivo call using Plivo Voice API
    * Endpoint: DELETE https://api.plivo.com/v1/Account/{auth_id}/Call/{call_uuid}/
    */

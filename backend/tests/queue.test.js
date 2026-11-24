@@ -40,7 +40,7 @@ describe('pg-boss queue readiness and enqueueing', () => {
 
     expect(firstJob).toBe('job-123');
     expect(secondJob).toBe('job-123');
-    expect(boss.createQueue).toHaveBeenCalledTimes(3);
+    expect(boss.createQueue).toHaveBeenCalledTimes(Object.keys(queue.JOB_QUEUES).length);
     expect(logSpy.mock.calls.filter(([message]) => String(message).includes('Job enqueued to pg-boss'))).toHaveLength(2);
   });
 
