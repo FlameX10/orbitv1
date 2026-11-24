@@ -1,95 +1,137 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, Server, Database, Phone, Bot, Cpu, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Server, Database, Phone, Cpu, Mic, AudioLines, Globe2, RefreshCw } from 'lucide-react';
 import api from '../services/api';
+import { PageHeader, PageLoader, formatDateTime } from '../components/ui';
+
+function statusTone(value) {
+  const v = String(value || '').toUpperCase();
+  if (['HEALTHY', 'UP', 'LIVE'].includes(v)) return 'success';
+  if (['UNHEALTHY', 'DOWN'].includes(v)) return 'danger';
+  if (!v || v === 'UNKNOWN') return 'neutral';
+  return 'warning';
+}
+
+function ServiceCard({ icon: Icon, title, description, status, tone, style }) {
+  return (
+    <div className="card card-hover p-5" style={style}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="icon-tile"><Icon className="w-[18px] h-[18px]" /></span>
+          <div className="font-semibold text-[14.5px]" style={{ color: 'var(--text)' }}>{title}</div>
+        </div>
+        {status && (
+          <span className={`pill tone-${tone || statusTone(status)}`}>
+            <span className="pill-dot" /> {status}
+          </span>
+        )}
+      </div>
+      <p className="text-[13px] muted mt-3 mb-0 leading-relaxed">{description}</p>
+    </div>
+  );
+}
 
 export default function Settings() {
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function checkHealth() {
-      try {
-        const res = await api.get('/health');
-        setHealth(res);
-      } catch (err) {
-        console.error('Health check error:', err);
-      } finally {
-        setLoading(false);
-      }
+  const checkHealth = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/health');
+      setHealth(res);
+    } catch (err) {
+      console.error('Health check error:', err);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     checkHealth();
   }, []);
 
-  if (loading) return <div className="p-8 text-cyan-400 font-mono">Running System Telemetry Health Check...</div>;
+  if (loading && !health) return <PageLoader label="Checking system health" />;
 
   const services = health?.services || {};
+  const overall = health?.status || 'UNKNOWN';
+  const healthy = overall === 'UP';
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-extrabold text-white flex items-center gap-2">
-          <ShieldCheck className="w-6 h-6 text-emerald-400" />
-          System Health & Architecture Status
-        </h1>
-        <p className="text-sm text-slate-400">PostgreSQL queue status, Twilio, ElevenLabs, and LLM Provider configuration inspect</p>
-      </div>
+    <div className="space-y-7">
+      <PageHeader
+        eyebrow="System"
+        title="System Health"
+        subtitle="Live status of the platform and the services that power every call."
+        actions={
+          <button onClick={checkHealth} className="btn btn-secondary">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Re-check
+          </button>
+        }
+      />
 
-      <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-          <span className="text-sm font-semibold text-slate-300">Overall System Status:</span>
-          <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold ${
-            health?.status === 'UP' ? 'bg-emerald-950 border border-emerald-700 text-emerald-300' : 'bg-amber-950 border border-amber-700 text-amber-300'
-          }`}>
-            {health?.status || 'ONLINE'}
+      {/* Overall */}
+      <section className="card card-glow overflow-hidden p-6 md:p-7">
+        <div className="orb" style={{ width: 280, height: 280, top: -150, right: -60, background: healthy ? 'rgba(52,211,153,0.2)' : 'rgba(251,191,36,0.2)' }} />
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-5">
+          <div className="flex items-center gap-4">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center"
+              style={{ background: healthy ? 'var(--success-soft)' : 'var(--warning-soft)', border: `1px solid ${healthy ? 'rgba(52,211,153,0.3)' : 'rgba(251,191,36,0.3)'}` }}
+            >
+              <ShieldCheck className="w-7 h-7" style={{ color: healthy ? 'var(--success)' : 'var(--warning)' }} />
+            </div>
+            <div>
+              <div className="text-[22px] font-bold" style={{ fontFamily: 'var(--font-display)', color: 'var(--text)' }}>
+                {healthy ? 'All systems operational' : 'Some services need attention'}
+              </div>
+              <div className="text-[13px] faint mt-0.5">
+                Last checked {formatDateTime(health?.timestamp)}{health?.environment ? ` · ${health.environment}` : ''}
+              </div>
+            </div>
+          </div>
+          <span className={`pill tone-${statusTone(overall)}`} style={{ height: 30, padding: '0 14px', fontSize: 12.5 }}>
+            <span className="live-dot" style={{ width: 7, height: 7, background: 'currentColor' }} /> {overall}
           </span>
         </div>
+      </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 text-xs">
-          {/* Database */}
-          <div className="p-4 glass-card rounded-xl border border-slate-800 space-y-1">
-            <div className="flex items-center justify-between font-bold text-white mb-2">
-              <span className="flex items-center gap-2"><Database className="w-4 h-4 text-cyan-400" /> PostgreSQL Database</span>
-              <span className="text-emerald-400 font-mono">{services.database?.status}</span>
-            </div>
-            <p className="text-slate-400">Primary persistence store & transactional queue backing.</p>
-          </div>
-
-          {/* Queue */}
-          <div className="p-4 glass-card rounded-xl border border-slate-800 space-y-1">
-            <div className="flex items-center justify-between font-bold text-white mb-2">
-              <span className="flex items-center gap-2"><Server className="w-4 h-4 text-purple-400" /> Job Queue (No Redis)</span>
-              <span className="text-emerald-400 font-mono">{services.queue?.status}</span>
-            </div>
-            <p className="text-slate-400">{services.queue?.provider}</p>
-          </div>
-
-          {/* Twilio */}
-          <div className="p-4 glass-card rounded-xl border border-slate-800 space-y-1">
-            <div className="flex items-center justify-between font-bold text-white mb-2">
-              <span className="flex items-center gap-2"><Phone className="w-4 h-4 text-rose-400" /> Twilio Telephony</span>
-              <span className="text-cyan-400 font-mono">{services.twilio?.isMock ? 'MOCK / DEV' : 'LIVE API'}</span>
-            </div>
-            <p className="text-slate-400">Handles call initiation, SID tracking, and status webhooks.</p>
-          </div>
-
-          {/* ElevenLabs */}
-          <div className="p-4 glass-card rounded-xl border border-slate-800 space-y-1">
-            <div className="flex items-center justify-between font-bold text-white mb-2">
-              <span className="flex items-center gap-2"><Bot className="w-4 h-4 text-amber-400" /> ElevenLabs Voice AI</span>
-              <span className="text-cyan-400 font-mono">{services.elevenlabs?.isMock ? 'MOCK / DEV' : 'LIVE API'}</span>
-            </div>
-            <p className="text-slate-400">Natural voice synthesis & agent session management.</p>
-          </div>
-
-          {/* LLM Provider */}
-          <div className="p-4 glass-card rounded-xl border border-slate-800 space-y-1 md:col-span-2">
-            <div className="flex items-center justify-between font-bold text-white mb-2">
-              <span className="flex items-center gap-2"><Cpu className="w-4 h-4 text-emerald-400" /> LLM Reasoning Provider</span>
-              <span className="text-cyan-400 font-mono uppercase">{services.llm?.provider} ({services.llm?.isMock ? 'MOCK' : 'LIVE'})</span>
-            </div>
-            <p className="text-slate-400">Handles intent classification, dynamic qualification extraction, and callback time resolution.</p>
-          </div>
+      <div>
+        <div className="eyebrow mb-3">Platform</div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger">
+          <ServiceCard
+            style={{ '--i': 0 }}
+            icon={Database}
+            title="Database"
+            status={services.database?.status}
+            description="PostgreSQL — stores leads, calls, transcripts and results."
+          />
+          <ServiceCard
+            style={{ '--i': 1 }}
+            icon={Server}
+            title="Job queue"
+            status={services.queue?.status}
+            description={`${services.queue?.provider || 'PostgreSQL pg-boss'} — runs calls, callbacks and post-call processing.`}
+          />
+          <ServiceCard
+            style={{ '--i': 2 }}
+            icon={Cpu}
+            title="Post-call AI scoring"
+            status={services.llm ? (services.llm.isMock ? 'Not configured' : 'Live') : undefined}
+            tone={services.llm ? (services.llm.isMock ? 'warning' : 'success') : undefined}
+            description={`Summarises and scores each call${services.llm?.provider ? ` using ${String(services.llm.provider).toUpperCase()}` : ''}.`}
+          />
         </div>
+      </div>
+
+      <div>
+        <div className="eyebrow mb-3">Voice stack</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 stagger">
+          <ServiceCard style={{ '--i': 0 }} icon={Phone} title="Plivo AI Agent" description="Places outbound calls and runs the qualification conversation flow." />
+          <ServiceCard style={{ '--i': 1 }} icon={Globe2} title="Regional routing" description="India (+91) numbers use the India agent; all others use the US agent." />
+          <ServiceCard style={{ '--i': 2 }} icon={Mic} title="Speech recognition" description="Sarvam speech-to-text, tuned for English and Hindi callers." />
+          <ServiceCard style={{ '--i': 3 }} icon={AudioLines} title="Natural voice" description="ElevenLabs text-to-speech for a warm, natural agent voice." />
+        </div>
+        <p className="text-[12px] faint mt-3">Voice stack services are configured in the Plivo agent and checked on each call.</p>
       </div>
     </div>
   );

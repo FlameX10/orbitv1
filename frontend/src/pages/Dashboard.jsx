@@ -1,21 +1,47 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Users, 
-  PhoneCall, 
-  CheckCircle2, 
-  CalendarClock, 
-  Percent, 
-  Clock, 
-  Flame, 
-  ChevronRight,
-  Zap,
-  Phone
+import {
+  Users,
+  CheckCircle2,
+  CalendarClock,
+  Clock,
+  ArrowUpRight,
+  PhoneCall,
+  Radio,
+  Sparkles,
+  Gauge
 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import StatCard from '../components/StatCard';
 import QualificationBadge from '../components/QualificationBadge';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
-import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { Avatar, CountUp, EmptyState, PageLoader, StatusPill, formatDuration, timeAgo } from '../components/ui';
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function MetricBar({ label, value, hint }) {
+  const pct = Math.max(0, Math.min(100, Number(value) || 0));
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-2">
+        <span className="text-[13px] muted">{label}</span>
+        <span className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>
+          <CountUp value={pct} decimals={1} suffix="%" />
+        </span>
+      </div>
+      <div className="progress-track">
+        <div className="progress-bar" style={{ width: `${pct}%` }} />
+      </div>
+      {hint && <div className="text-[11.5px] faint mt-1.5">{hint}</div>}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const [overview, setOverview] = useState(null);
@@ -23,6 +49,8 @@ export default function Dashboard() {
   const [recentLeads, setRecentLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const { lastEvent } = useSocket();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const fetchDashboardData = async () => {
     try {
@@ -54,160 +82,232 @@ export default function Dashboard() {
   }, [lastEvent]);
 
   if (loading && !overview) {
-    return (
-      <div className="flex items-center justify-center h-64 text-cyan-400 font-mono">
-        Loading Voice Agent Operational Telemetry...
-      </div>
-    );
+    return <PageLoader label="Loading overview" />;
   }
 
+  const firstName = (user?.name || '').split(' ')[0];
+
   return (
-    <div className="space-y-8">
-      {/* Header Banner */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
-            Autonomous Voice Lead Qualification
-          </h1>
-          <p className="text-sm text-slate-400">
-            Real-time telemetry, concurrent call queue, and BANT qualification engine
-          </p>
-        </div>
+    <div className="space-y-7">
+      {/* Hero */}
+      <section className="card card-glow overflow-hidden px-7 py-7 md:px-9 md:py-8">
+        <div className="orb" style={{ width: 340, height: 340, top: -140, right: -60, background: 'rgba(139,124,246,0.35)' }} />
+        <div className="orb" style={{ width: 260, height: 260, bottom: -150, right: 260, background: 'rgba(45,212,191,0.16)', animationDelay: '-6s' }} />
+        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-7">
+          <div className="max-w-2xl">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="pill tone-iris"><Sparkles className="w-3.5 h-3.5" /> AI Voice Agent</span>
+              <span className="pill tone-neutral">
+                <span className={`live-dot ${activeCalls.length ? 'live-dot-iris' : ''}`} style={{ width: 6, height: 6 }} />
+                {activeCalls.length ? `${activeCalls.length} live now` : 'Standing by'}
+              </span>
+            </div>
+            <h1 className="text-[30px] md:text-[36px] font-bold tracking-tight leading-[1.1]">
+              <span className="text-gradient">{greeting()}{firstName ? `, ${firstName}` : ''}.</span>
+            </h1>
+            <p className="page-subtitle text-[15px]">
+              Your AI agent is qualifying website leads around the clock — calling within seconds, speaking English and Hindi, and handing your sales team ready-to-close conversations.
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded-lg glass-panel border border-slate-800 text-slate-400">
-          <Zap className="w-4 h-4 text-cyan-400 fill-current" />
-          <span>Max Concurrent Calls: <strong className="text-white">10</strong></span>
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-3 shrink-0 w-full lg:w-auto">
+            {[
+              { label: 'Calls placed', value: overview?.totalCalls || 0 },
+              { label: 'Connected', value: overview?.connectedCalls || 0 },
+              { label: 'Live now', value: overview?.activeCallsCount || 0 }
+            ].map(item => (
+              <div key={item.label} className="rounded-2xl px-3 sm:px-4 py-3.5 min-w-0 sm:min-w-[104px]" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid var(--border)' }}>
+                <div className="text-[22px] sm:text-[24px] font-bold" style={{ color: 'var(--text)' }}><CountUp value={item.value} /></div>
+                <div className="text-[11px] sm:text-[11.5px] faint mt-0.5 truncate">{item.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Overview Stat Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 stagger">
         <StatCard
-          title="Total Leads Ingested"
+          style={{ '--i': 0 }}
+          title="Leads captured"
           value={overview?.totalLeads || 0}
-          subtext="Automatic website lead detection"
+          subtext="Website enquiries received"
           icon={Users}
-          color="cyan"
+          color="iris"
         />
         <StatCard
-          title="Qualified Customers"
+          style={{ '--i': 1 }}
+          title="Qualified"
           value={overview?.qualifiedLeads || 0}
-          subtext={`Conversion Rate: ${overview?.conversionRate || 0}%`}
+          subtext={`${overview?.conversionRate || 0}% conversion rate`}
           icon={CheckCircle2}
           color="emerald"
         />
         <StatCard
-          title="Scheduled Callbacks"
+          style={{ '--i': 2 }}
+          title="Callbacks scheduled"
           value={overview?.callbacksCount || 0}
-          subtext="PostgreSQL Job Queue Scheduled"
+          subtext="Follow-ups queued by the agent"
           icon={CalendarClock}
           color="amber"
         />
         <StatCard
-          title="Avg Call Duration"
-          value={`${overview?.avgDuration || 0}s`}
-          subtext={`Connection Rate: ${overview?.connectionRate || 0}%`}
+          style={{ '--i': 3 }}
+          title="Avg. call duration"
+          value={formatDuration(overview?.avgDuration || 0)}
+          subtext={`${overview?.connectionRate || 0}% connection rate`}
           icon={Clock}
           color="purple"
         />
       </div>
 
-      {/* Active Calls Live Feed Banner */}
-      <div className="glass-panel rounded-2xl border border-cyan-500/30 p-6 relative overflow-hidden">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-cyan-400 animate-ping"></div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              Active Call Telemetry ({activeCalls.length})
-            </h2>
-          </div>
-          <span className="text-xs font-mono text-cyan-400">Streaming Live WebSockets</span>
-        </div>
-
-        {activeCalls.length === 0 ? (
-          <div className="p-6 text-center border border-dashed border-slate-800 rounded-xl text-slate-500 text-sm">
-            No calls currently active. Use "Simulate Website Lead" in top right to trigger a live call job.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {activeCalls.map((call) => (
-              <div key={call.id} className="glass-card p-4 rounded-xl border border-cyan-500/40 relative">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-mono text-cyan-300 font-bold flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 animate-bounce" />
-                    {call.lead?.phone}
-                  </span>
-                  <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-cyan-950 border border-cyan-700 text-cyan-300">
-                    {call.status}
-                  </span>
-                </div>
-                <div className="text-sm font-semibold text-white mb-1">
-                  {call.lead?.firstName} {call.lead?.lastName} ({call.lead?.company || 'Lead'})
-                </div>
-                <p className="text-xs text-slate-400 italic line-clamp-2">
-                  "{call.messages[0]?.content || 'Conversing with ElevenLabs AI Agent...'}"
-                </p>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        {/* Live calls */}
+        <section className="card xl:col-span-2 overflow-hidden">
+          <div className="card-header">
+            <div>
+              <div className="card-title">
+                <span className="icon-tile" style={{ width: 30, height: 30, borderRadius: 9 }}><Radio className="w-4 h-4" /></span>
+                Live conversations
               </div>
-            ))}
+              <div className="card-subtitle">Calls happening right now, updated in real time</div>
+            </div>
+            <span className="pill tone-iris num">{activeCalls.length} active</span>
           </div>
-        )}
+
+          {activeCalls.length === 0 ? (
+            <EmptyState
+              icon={PhoneCall}
+              title="No live calls right now"
+              text="When a new lead arrives, the agent dials within seconds and the conversation appears here."
+              action={<Link to="/test-call" className="btn btn-secondary btn-sm">Start a test call</Link>}
+            />
+          ) : (
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4 stagger">
+              {activeCalls.map((call, index) => {
+                const name = `${call.lead?.firstName || ''} ${call.lead?.lastName || ''}`.trim() || 'Lead';
+                return (
+                  <button
+                    key={call.id}
+                    onClick={() => navigate(`/calls/${call.id}`)}
+                    className="card card-hover text-left p-4"
+                    style={{ '--i': index, background: 'rgba(139,124,246,0.06)', borderColor: 'rgba(139,124,246,0.22)' }}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar name={name} />
+                        <div className="min-w-0">
+                          <div className="font-semibold truncate" style={{ color: 'var(--text)' }}>{name}</div>
+                          <div className="mono faint truncate">{call.lead?.phone}</div>
+                        </div>
+                      </div>
+                      <StatusPill status={call.status} />
+                    </div>
+                    <p className="text-[12.5px] muted mt-3 line-clamp-2 italic">
+                      “{call.messages[0]?.content || 'Conversation in progress…'}”
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Performance */}
+        <section className="card overflow-hidden">
+          <div className="card-header">
+            <div>
+              <div className="card-title">
+                <span className="icon-tile" style={{ width: 30, height: 30, borderRadius: 9 }}><Gauge className="w-4 h-4" /></span>
+                Performance
+              </div>
+              <div className="card-subtitle">How calls are converting</div>
+            </div>
+          </div>
+          <div className="p-6 space-y-6">
+            <MetricBar
+              label="Connection rate"
+              value={overview?.connectionRate}
+              hint={`${overview?.connectedCalls || 0} of ${overview?.totalCalls || 0} calls connected`}
+            />
+            <MetricBar
+              label="Qualification rate"
+              value={overview?.conversionRate}
+              hint={`${overview?.qualifiedLeads || 0} of ${overview?.totalLeads || 0} leads qualified`}
+            />
+            <div className="divider" />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="eyebrow">Not qualified</div>
+                <div className="text-[22px] font-bold mt-1" style={{ color: 'var(--text)' }}><CountUp value={overview?.notQualifiedLeads || 0} /></div>
+              </div>
+              <div>
+                <div className="eyebrow">Unreached</div>
+                <div className="text-[22px] font-bold mt-1" style={{ color: 'var(--text)' }}><CountUp value={overview?.failedCalls || 0} /></div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
-      {/* Recent Leads Ingested Table */}
-      <div className="glass-panel rounded-2xl border border-slate-800 p-6">
-        <div className="flex items-center justify-between mb-6">
+      {/* Recent leads */}
+      <section className="card overflow-hidden">
+        <div className="card-header">
           <div>
-            <h2 className="text-lg font-bold text-white">Recent Website Leads</h2>
-            <p className="text-xs text-slate-400">Latest form submissions processed by Postgres job queue</p>
+            <div className="card-title">Recent leads</div>
+            <div className="card-subtitle">Latest website enquiries and where each one stands</div>
           </div>
-          <Link
-            to="/leads"
-            className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-          >
-            View All CRM Leads <ChevronRight className="w-4 h-4" />
+          <Link to="/leads" className="btn btn-ghost btn-sm">
+            View all <ArrowUpRight className="w-4 h-4" />
           </Link>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-900/80 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              <tr>
-                <th className="p-3">Lead Name</th>
-                <th className="p-3">Phone</th>
-                <th className="p-3">Company</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Score</th>
-                <th className="p-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {recentLeads.map((lead) => (
-                <tr key={lead.id} className="hover:bg-slate-900/40 transition-colors">
-                  <td className="p-3 font-semibold text-white">
-                    {lead.firstName} {lead.lastName}
-                  </td>
-                  <td className="p-3 font-mono text-xs text-slate-300">{lead.phone}</td>
-                  <td className="p-3 text-slate-400">{lead.company || '--'}</td>
-                  <td className="p-3">
-                    <QualificationBadge status={lead.status} />
-                  </td>
-                  <td className="p-3 font-mono font-bold text-cyan-400">
-                    {lead.qualificationScore || 0}/100
-                  </td>
-                  <td className="p-3">
-                    <Link
-                      to={`/leads/${lead.id}`}
-                      className="text-xs font-semibold text-cyan-400 hover:underline"
-                    >
-                      View Details & Transcript
-                    </Link>
-                  </td>
+        {recentLeads.length === 0 ? (
+          <EmptyState icon={Users} title="No leads yet" text="New website enquiries will appear here the moment they arrive." />
+        ) : (
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Lead</th>
+                  <th>Phone</th>
+                  <th>Company</th>
+                  <th>Status</th>
+                  <th>Received</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody>
+                {recentLeads.map((lead) => {
+                  const name = `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
+                  return (
+                    <tr key={lead.id} className="row-link" onClick={() => navigate(`/leads/${lead.id}`)}>
+                      <td>
+                        <div className="flex items-center gap-3">
+                          <Avatar name={name} />
+                          <div>
+                            <div className="cell-strong">{name}</div>
+                            <div className="text-[12px] faint">{lead.email || 'No email'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="mono">{lead.phone}</td>
+                      <td>{lead.company || '—'}</td>
+                      <td><QualificationBadge status={lead.status} score={lead.qualificationScore} /></td>
+                      <td className="text-[12.5px] faint whitespace-nowrap">{timeAgo(lead.createdAt)}</td>
+                      <td className="text-right">
+                        <Link to={`/leads/${lead.id}`} onClick={e => e.stopPropagation()} className="btn btn-ghost btn-sm">
+                          Open <ArrowUpRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

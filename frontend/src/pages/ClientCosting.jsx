@@ -3,16 +3,19 @@ import {
   DollarSign,
   Copy,
   Check,
-  Zap,
   Info,
   TrendingUp,
   RefreshCw,
-  User,
+  Users,
   MessageSquare,
   Timer,
-  Search
+  Search,
+  Phone,
+  Bot,
+  Wallet
 } from 'lucide-react';
 import api from '../services/api';
+import { Avatar, CountUp, EmptyState, PageHeader, RegionChip } from '../components/ui';
 
 const RANGE_OPTIONS = [
   { id: '7', label: 'Last 7 days' },
@@ -33,22 +36,34 @@ function toIsoDate(date) {
   return date.toISOString().slice(0, 10);
 }
 
-function StatTile({ label, value, accent = false }) {
+function StatTile({ label, value, decimals = 0, prefix = '', accent = false, icon: Icon }) {
   return (
-    <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/80">
-      <span className="text-slate-400 text-xs font-medium uppercase tracking-wider block">{label}</span>
-      <div className={`text-xl font-black font-mono mt-1 ${accent ? 'text-emerald-300' : 'text-white'}`}>{value}</div>
+    <div
+      className="rounded-2xl px-4 py-4"
+      style={{
+        background: accent ? 'linear-gradient(140deg, rgba(139,124,246,0.16), rgba(232,196,124,0.06))' : 'rgba(255,255,255,0.03)',
+        border: `1px solid ${accent ? 'rgba(139,124,246,0.3)' : 'var(--border)'}`
+      }}
+    >
+      <div className="flex items-center gap-1.5 eyebrow">{Icon && <Icon className="w-3.5 h-3.5" />}{label}</div>
+      <div className="text-[22px] font-bold mt-1.5" style={{ color: accent ? '#fff' : 'var(--text)' }}>
+        <CountUp value={value} decimals={decimals} prefix={prefix} />
+      </div>
     </div>
   );
 }
 
-function SummaryCard({ icon: Icon, label, value }) {
+function SummaryCard({ icon: Icon, label, value, decimals = 0, prefix = '', hint }) {
   return (
-    <div className="glass-card p-5 rounded-2xl border border-slate-800">
-      <span className="text-slate-400 text-xs font-medium uppercase tracking-wider flex items-center gap-2">
-        <Icon className="w-4 h-4 text-cyan-400" /> {label}
-      </span>
-      <div className="text-2xl font-black text-white font-mono mt-2">{value}</div>
+    <div className="card card-hover p-5">
+      <div className="flex items-center justify-between">
+        <span className="eyebrow">{label}</span>
+        <span className="icon-tile" style={{ width: 32, height: 32, borderRadius: 10 }}><Icon className="w-4 h-4" /></span>
+      </div>
+      <div className="text-[28px] font-bold mt-2" style={{ color: 'var(--text)' }}>
+        <CountUp value={value} decimals={decimals} prefix={prefix} />
+      </div>
+      {hint && <div className="text-[12px] faint mt-1">{hint}</div>}
     </div>
   );
 }
@@ -132,101 +147,93 @@ export default function ClientCosting() {
     setTimeout(() => setCopied(false), 2500);
   };
 
-  return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12">
-      {/* Header */}
-      <div className="glass-panel p-6 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/40 relative overflow-hidden">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-cyan-500/10 to-transparent pointer-events-none" />
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono flex items-center gap-1.5">
-                <Zap className="w-3 h-3" /> REAL USAGE & COSTS
-              </span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-              Call Costing & Usage
-            </h1>
-            <p className="text-sm text-slate-400 mt-1 max-w-2xl">
-              Real usage totals from completed calls and Plivo billing data.
-            </p>
-          </div>
-          <button
-            onClick={handleCopySummary}
-            disabled={!totals}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm text-slate-950 bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 disabled:opacity-50 transition-all shadow-lg shadow-cyan-500/20 shrink-0"
-          >
-            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            <span>{copied ? 'Summary Copied!' : 'Copy Usage Summary'}</span>
-          </button>
-        </div>
-      </div>
+  const coverage = Number(totals?.billingCoverage || 0);
 
-      {/* Overall costing */}
-      <div className="glass-card p-6 rounded-2xl border border-slate-800 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              Overall System Costing
-            </h2>
-            <p className="text-sm text-slate-400 mt-1">Actual totals across every call in the selected period (USD).</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {RANGE_OPTIONS.map(option => (
-              <button
-                key={option.id}
-                onClick={() => setRange(option.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                  range === option.id
-                    ? 'border-cyan-500 bg-cyan-950/40 text-white'
-                    : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-            <button
-              onClick={loadActual}
-              className="p-1.5 rounded-lg border border-slate-800 text-slate-400 hover:text-white"
-              title="Refresh"
-            >
+  return (
+    <div className="space-y-7">
+      <PageHeader
+        eyebrow="Insights"
+        title="Usage & Costs"
+        subtitle="Real usage from completed calls, billed by Plivo — per call, per lead and in total."
+        actions={
+          <>
+            <div className="segmented" role="tablist" aria-label="Date range">
+              {RANGE_OPTIONS.map(option => (
+                <button key={option.id} type="button" data-active={range === option.id} onClick={() => setRange(option.id)}>
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={loadActual} className="btn btn-secondary btn-icon" title="Refresh" aria-label="Refresh">
               <RefreshCw className={`w-4 h-4 ${actualLoading ? 'animate-spin' : ''}`} />
             </button>
-          </div>
+            <button onClick={handleCopySummary} disabled={!totals} className="btn btn-primary">
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Copied' : 'Copy summary'}
+            </button>
+          </>
+        }
+      />
+
+      {actualError && (
+        <div className="card p-5 flex items-center gap-3" style={{ borderColor: 'rgba(248,113,113,0.3)' }}>
+          <Info className="w-5 h-5" style={{ color: 'var(--danger)' }} />
+          <span className="text-[13.5px]" style={{ color: 'var(--text)' }}>{actualError}</span>
         </div>
+      )}
 
-        {actualError && <div className="text-sm text-rose-400">{actualError}</div>}
-        {!actualError && !totals && actualLoading && <div className="text-sm text-slate-500">Loading cost data...</div>}
+      {!actualError && !totals && actualLoading && (
+        <div className="space-y-5">
+          <div className="skeleton h-52" style={{ borderRadius: 20 }} />
+          <div className="skeleton h-80" style={{ borderRadius: 20 }} />
+        </div>
+      )}
 
-        {!actualError && totals && (
-          <>
-            <div className="flex justify-end">
-              <span className="text-xs font-mono text-slate-400">{totals.billingCoverage}% billing coverage</span>
+      {!actualError && totals && (
+        <>
+          {/* Overall */}
+          <section className="card card-glow overflow-hidden">
+            <div className="orb" style={{ width: 320, height: 320, top: -170, right: -80, background: 'rgba(232,196,124,0.14)' }} />
+            <div className="card-header relative">
+              <div>
+                <div className="card-title">
+                  <span className="icon-tile" style={{ width: 30, height: 30, borderRadius: 9 }}><TrendingUp className="w-4 h-4" /></span>
+                  Overall usage
+                </div>
+                <div className="card-subtitle">{rangeLabel} · all amounts in USD</div>
+              </div>
+              <div className="text-right min-w-[150px]">
+                <div className="flex items-center justify-end gap-2 text-[12px] faint mb-1.5">
+                  Billing coverage <span className="num font-semibold" style={{ color: 'var(--text)' }}>{coverage}%</span>
+                </div>
+                <div className="progress-track"><div className="progress-bar" style={{ width: `${coverage}%` }} /></div>
+              </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <StatTile label="Total Calls" value={num(totals.calls)} />
-              <StatTile label="Total Minutes" value={num(totals.callMinutes, 2)} />
-              <StatTile label="Billed Minutes" value={num(totals.billedMinutes, 2)} />
-              <StatTile label="Telephony Cost" value={usd(totals.telephonyCost, 4)} />
-              <StatTile label="AI Agent Cost" value={usd(totals.aiCost, 4)} />
-              <StatTile label="Total Cost" value={usd(totals.totalCost, 4)} accent />
+
+            <div className="relative p-5 md:p-6 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+              <StatTile label="Total calls" value={totals.calls} icon={Phone} />
+              <StatTile label="Total minutes" value={totals.callMinutes} decimals={2} icon={Timer} />
+              <StatTile label="Billed minutes" value={totals.billedMinutes} decimals={2} icon={Timer} />
+              <StatTile label="Telephony" value={totals.telephonyCost} decimals={4} prefix="$" icon={Phone} />
+              <StatTile label="AI agent" value={totals.aiCost} decimals={4} prefix="$" icon={Bot} />
+              <StatTile label="Total cost" value={totals.totalCost} decimals={4} prefix="$" icon={Wallet} accent />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="relative px-5 md:px-6 pb-6 grid grid-cols-1 md:grid-cols-2 gap-3">
               {['IN', 'US'].map(code => {
                 const r = actual.byRegion[code];
                 return (
-                  <div key={code} className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold text-white">{code === 'IN' ? 'India (+91)' : 'US / Other'}</div>
-                      <div className="text-xs text-slate-400 font-mono">
-                        {r.calls} calls · {num(r.billedMinutes, 2)} billed min
+                  <div key={code} className="flex items-center justify-between rounded-2xl px-4 py-3.5" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid var(--border)' }}>
+                    <div className="flex items-center gap-3">
+                      <RegionChip region={code} />
+                      <div>
+                        <div className="font-semibold text-[13.5px]" style={{ color: 'var(--text)' }}>{code === 'IN' ? 'India' : 'US & other'}</div>
+                        <div className="text-[12px] faint">{r.calls} calls · {num(r.billedMinutes, 2)} billed min</div>
                       </div>
                     </div>
-                    <div className="text-right font-mono">
-                      <div className="font-bold text-white">{usd(r.totalCost, 4)}</div>
-                      <div className="text-[11px] text-slate-500">{usd(r.avgCostPerMinute, 4)} / min</div>
+                    <div className="text-right">
+                      <div className="num font-bold" style={{ color: 'var(--text)' }}>{usd(r.totalCost, 4)}</div>
+                      <div className="text-[11.5px] faint">{usd(r.avgCostPerMinute, 4)} / min</div>
                     </div>
                   </div>
                 );
@@ -234,8 +241,8 @@ export default function ClientCosting() {
             </div>
 
             {(totals.costPending > 0 || totals.costUnavailable > 0 || (actual.aiCostPerMin.IN === 0 && actual.aiCostPerMin.US === 0)) && (
-              <div className="flex items-start gap-2 text-xs text-slate-400">
-                <Info className="w-4 h-4 shrink-0 text-blue-400" />
+              <div className="relative flex items-start gap-2.5 text-[12.5px] muted px-6 py-4" style={{ borderTop: '1px solid var(--border)' }}>
+                <Info className="w-4 h-4 shrink-0 mt-0.5" style={{ color: 'var(--info)' }} />
                 <span>
                   {totals.costPending > 0 && `${totals.costPending} call(s) still waiting for Plivo billing data. `}
                   {totals.costUnavailable > 0 && `${totals.costUnavailable} call(s) have no Plivo billing record. `}
@@ -244,96 +251,97 @@ export default function ClientCosting() {
                 </span>
               </div>
             )}
-          </>
-        )}
-      </div>
+          </section>
 
-      {/* Lead-wise usage */}
-      {!actualError && totals && (
-        <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden">
-          <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <User className="w-5 h-5 text-cyan-400" />
-                Lead-wise Usage
-              </h2>
-              <p className="text-sm text-slate-400 mt-1">Calls, minutes and costs grouped by lead.</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                <input
-                  value={leadSearch}
-                  onChange={(e) => { setLeadSearch(e.target.value); setLeadLimit(LEAD_PAGE_SIZE); }}
-                  placeholder="Search name, phone, company"
-                  className="pl-8 pr-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-sm text-white w-56"
-                />
+          {/* Summary cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger">
+            <div style={{ '--i': 0 }}><SummaryCard icon={MessageSquare} label="Calls with billing data" value={totals.callsWithBilling} hint={`of ${num(totals.calls)} calls`} /></div>
+            <div style={{ '--i': 1 }}><SummaryCard icon={Timer} label="Average minutes / call" value={totals.avgMinutesPerCall} decimals={2} hint="Connected time per call" /></div>
+            <div style={{ '--i': 2 }}><SummaryCard icon={DollarSign} label="Spend / billed call" value={totals.avgCostPerBilledCall} decimals={4} prefix="$" hint={`${usd(totals.avgCostPerMinute, 4)} per billed minute`} /></div>
+          </div>
+
+          {/* Lead-wise usage */}
+          <section className="card overflow-hidden">
+            <div className="card-header">
+              <div>
+                <div className="card-title">
+                  <span className="icon-tile" style={{ width: 30, height: 30, borderRadius: 9 }}><Users className="w-4 h-4" /></span>
+                  Lead-wise usage
+                </div>
+                <div className="card-subtitle">Calls, minutes and costs for each lead</div>
               </div>
-              <span className="text-xs font-mono text-slate-400 whitespace-nowrap">{filteredLeads.length} leads</span>
+              <div className="flex items-center gap-3">
+                <div className="relative hidden sm:block">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 faint" />
+                  <input
+                    value={leadSearch}
+                    onChange={(e) => { setLeadSearch(e.target.value); setLeadLimit(LEAD_PAGE_SIZE); }}
+                    placeholder="Search name, phone, company"
+                    className="input input-icon w-64"
+                    style={{ height: 38 }}
+                    aria-label="Search leads"
+                  />
+                </div>
+                <span className="pill tone-neutral num">{filteredLeads.length} leads</span>
+              </div>
             </div>
-          </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-t border-b border-slate-800 bg-slate-900/60 text-slate-400 text-xs uppercase tracking-wider">
-                  <th className="text-left font-semibold px-6 py-3">Lead</th>
-                  <th className="text-right font-semibold px-4 py-3">Calls</th>
-                  <th className="text-right font-semibold px-4 py-3">Minutes</th>
-                  <th className="text-right font-semibold px-4 py-3">Billed Min</th>
-                  <th className="text-right font-semibold px-4 py-3">Telephony</th>
-                  <th className="text-right font-semibold px-4 py-3">AI Agent</th>
-                  <th className="text-right font-semibold px-6 py-3">Total Cost</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {filteredLeads.length === 0 && (
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
                   <tr>
-                    <td colSpan={7} className="px-6 py-10 text-center text-slate-500">
-                      No call usage recorded for this period.
-                    </td>
+                    <th>Lead</th>
+                    <th className="text-right">Calls</th>
+                    <th className="text-right">Minutes</th>
+                    <th className="text-right">Billed min</th>
+                    <th className="text-right">Telephony</th>
+                    <th className="text-right">AI agent</th>
+                    <th className="text-right">Total cost</th>
                   </tr>
-                )}
-                {filteredLeads.slice(0, leadLimit).map(l => (
-                  <tr key={l.leadId || l.name} className="hover:bg-slate-800/30">
-                    <td className="px-6 py-3">
-                      <div className="font-semibold text-white">{l.name}</div>
-                      <div className="text-xs text-slate-500 font-mono">
-                        {l.phone || '—'}{l.company ? ` · ${l.company}` : ''} · {l.region}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-200">{l.calls}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-200">{num(l.callMinutes, 2)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-200">{num(l.billedMinutes, 2)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-200">{usd(l.telephonyCost, 4)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-200">{usd(l.aiCost, 4)}</td>
-                    <td className="px-6 py-3 text-right font-mono font-bold text-emerald-300">{usd(l.totalCost, 4)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredLeads.length > leadLimit && (
-            <div className="p-4 text-center border-t border-slate-800">
-              <button
-                onClick={() => setLeadLimit(limit => limit + LEAD_PAGE_SIZE)}
-                className="text-sm text-cyan-400 hover:text-cyan-300"
-              >
-                Show more ({filteredLeads.length - leadLimit} remaining)
-              </button>
+                </thead>
+                <tbody>
+                  {filteredLeads.length === 0 && (
+                    <tr>
+                      <td colSpan={7}>
+                        <EmptyState icon={Users} title="No usage in this period" text="Calls made in the selected range will appear here." />
+                      </td>
+                    </tr>
+                  )}
+                  {filteredLeads.slice(0, leadLimit).map(l => (
+                    <tr key={l.leadId || l.name}>
+                      <td>
+                        <div className="flex items-center gap-3">
+                          <Avatar name={l.name} />
+                          <div className="min-w-0">
+                            <div className="cell-strong truncate">{l.name}</div>
+                            <div className="text-[12px] faint truncate">
+                              <span className="mono">{l.phone || '—'}</span>{l.company ? ` · ${l.company}` : ''}
+                            </div>
+                          </div>
+                          <RegionChip region={l.region} />
+                        </div>
+                      </td>
+                      <td className="text-right num" style={{ color: 'var(--text)' }}>{l.calls}</td>
+                      <td className="text-right num">{num(l.callMinutes, 2)}</td>
+                      <td className="text-right num">{num(l.billedMinutes, 2)}</td>
+                      <td className="text-right num">{usd(l.telephonyCost, 4)}</td>
+                      <td className="text-right num">{usd(l.aiCost, 4)}</td>
+                      <td className="text-right num font-bold" style={{ color: 'var(--gold)' }}>{usd(l.totalCost, 4)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Summary cards */}
-      {!actualError && totals && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <SummaryCard icon={MessageSquare} label="Calls With Billing Data" value={num(totals.callsWithBilling)} />
-          <SummaryCard icon={Timer} label="Average Minutes / Call" value={num(totals.avgMinutesPerCall, 2)} />
-          <SummaryCard icon={DollarSign} label="Spend / Billed Call" value={usd(totals.avgCostPerBilledCall, 4)} />
-        </div>
+            {filteredLeads.length > leadLimit && (
+              <div className="p-4 text-center" style={{ borderTop: '1px solid var(--border)' }}>
+                <button onClick={() => setLeadLimit(limit => limit + LEAD_PAGE_SIZE)} className="btn btn-ghost btn-sm">
+                  Show more ({filteredLeads.length - leadLimit} remaining)
+                </button>
+              </div>
+            )}
+          </section>
+        </>
       )}
     </div>
   );

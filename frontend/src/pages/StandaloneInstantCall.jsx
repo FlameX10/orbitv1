@@ -1,23 +1,24 @@
 import React from 'react';
-import { Zap } from 'lucide-react';
 import PublicLeadForm from './PublicLeadForm';
+import { BrandMark } from '../components/Sidebar';
 
 export default function StandaloneInstantCall() {
   return (
-    <div className="standalone-page min-h-screen bg-slate-950 text-slate-100">
-      <header className="standalone-header border-b border-slate-800 bg-slate-950/90">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center text-slate-950">
-            <Zap className="w-5 h-5 fill-current" />
-          </div>
-          <div>
-            <div className="standalone-brand font-extrabold tracking-tight">Orbit Voice</div>
-            <div className="standalone-subtitle text-xs text-slate-400">AI voice qualification</div>
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="orb" style={{ width: 520, height: 520, top: '-18%', left: '-10%', background: 'rgba(139,124,246,0.22)' }} />
+      <div className="orb" style={{ width: 420, height: 420, top: '30%', right: '-12%', background: 'rgba(232,196,124,0.1)', animationDelay: '-7s' }} />
+
+      <header className="relative" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(7,8,12,0.6)', backdropFilter: 'blur(16px)' }}>
+        <div className="max-w-6xl mx-auto px-5 h-[68px] flex items-center gap-3">
+          <BrandMark size={36} />
+          <div className="leading-tight">
+            <div className="font-bold tracking-tight" style={{ fontFamily: 'var(--font-display)', color: 'var(--text)' }}>Orbit</div>
+            <div className="text-[11.5px] faint">AI voice qualification</div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 md:py-12">
+      <main className="relative max-w-6xl mx-auto px-5 py-10 md:py-14 animate-page">
         <PublicLeadForm />
       </main>
     </div>

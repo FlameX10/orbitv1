@@ -1,6 +1,14 @@
-import React, { useState } from 'react';
-import { X, Send, Clock } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { X, Send, Clock, UserPlus, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import api from '../services/api';
+
+const TIMING_OPTIONS = [
+  { value: '0', label: 'Now', hint: 'Within seconds' },
+  { value: '60', label: '1 min', hint: 'Short delay' },
+  { value: '300', label: '5 min', hint: 'Short delay' },
+  { value: '3600', label: '1 hour', hint: 'Later today' }
+];
 
 export default function NewLeadModal({ isOpen, onClose }) {
   const [formData, setFormData] = useState({
@@ -14,6 +22,13 @@ export default function NewLeadModal({ isOpen, onClose }) {
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -42,116 +57,100 @@ export default function NewLeadModal({ isOpen, onClose }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl p-6 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
-        >
-          <X className="w-5 h-5" />
-        </button>
+  const set = (key) => (e) => setFormData({ ...formData, [key]: e.target.value });
 
-        <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
-          Simulate Website Lead Ingestion
-        </h2>
-        <p className="text-xs text-slate-400 mb-5">
-          Submitting this form adds a lead to PostgreSQL and triggers an immediate Twilio + ElevenLabs voice call job.
-        </p>
+  // Portal to <body>: the header's backdrop-filter would otherwise trap this fixed overlay.
+  return createPortal(
+    <div className="fixed inset-0 z-[60] overflow-y-auto animate-fade" role="dialog" aria-modal="true" aria-labelledby="new-lead-title">
+      <div className="fixed inset-0 bg-black/65 backdrop-blur-md" onClick={onClose} />
 
-        {message && (
-          <div className={`p-3 rounded-lg text-xs font-medium mb-4 ${message.type === 'success' ? 'bg-emerald-950/80 border border-emerald-800 text-emerald-300' : 'bg-rose-950/80 border border-rose-800 text-rose-300'}`}>
-            {message.text}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4 text-sm">
-          <div className="grid grid-cols-2 gap-3">
+      <div className="relative min-h-full flex items-center justify-center p-4 pointer-events-none">
+      <div className="relative card card-glow w-full max-w-[520px] my-6 animate-scale pointer-events-auto" style={{ background: 'rgba(18,20,28,0.96)', boxShadow: 'var(--shadow-pop)' }}>
+        <div className="flex items-start justify-between gap-4 px-7 pt-7">
+          <div className="flex items-center gap-3.5">
+            <span className="icon-tile" style={{ width: 42, height: 42, borderRadius: 13 }}><UserPlus className="w-5 h-5" /></span>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">First Name *</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Rahul"
-                value={formData.firstName}
-                onChange={e => setFormData({ ...formData, firstName: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Last Name</label>
-              <input
-                type="text"
-                placeholder="e.g. Sharma"
-                value={formData.lastName}
-                onChange={e => setFormData({ ...formData, lastName: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500"
-              />
+              <h2 id="new-lead-title" className="text-[19px] font-bold">New lead</h2>
+              <p className="text-[13px] muted mt-0.5 mb-0">The AI agent will call this lead automatically.</p>
             </div>
           </div>
+          <button onClick={onClose} className="btn btn-ghost btn-icon btn-sm" aria-label="Close">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">Phone Number (E.164) *</label>
-            <input
-              type="tel"
-              required
-              placeholder="e.g. +919876543210"
-              value={formData.phone}
-              onChange={e => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500 font-mono"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Email</label>
-              <input
-                type="email"
-                placeholder="rahul@example.com"
-                value={formData.email}
-                onChange={e => setFormData({ ...formData, email: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Company</label>
-              <input
-                type="text"
-                placeholder="ABC Logistics"
-                value={formData.company}
-                onChange={e => setFormData({ ...formData, company: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-cyan-400" />
-              Call Execution Timing
-            </label>
-            <select
-              value={formData.delayOption}
-              onChange={e => setFormData({ ...formData, delayOption: e.target.value })}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500"
+        <form onSubmit={handleSubmit} className="px-7 pb-7 pt-6 space-y-4">
+          {message && (
+            <div
+              className={`flex items-start gap-2.5 rounded-xl px-4 py-3 text-[13px] ${message.type === 'success' ? 'tone-success' : 'tone-danger'}`}
+              style={{ border: '1px solid currentColor', borderColor: message.type === 'success' ? 'rgba(52,211,153,0.25)' : 'rgba(248,113,113,0.25)' }}
             >
-              <option value="0">⚡ Immediate Call (Default)</option>
-              <option value="60">⏱️ Delayed by 1 Minute</option>
-              <option value="300">⏱️ Delayed by 5 Minutes</option>
-              <option value="3600">📅 Scheduled for Later Today</option>
-            </select>
+              {message.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" /> : <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />}
+              <span>{message.text}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="field-label">First name *</label>
+              <input type="text" required placeholder="Rahul" value={formData.firstName} onChange={set('firstName')} className="input" autoFocus />
+            </div>
+            <div>
+              <label className="field-label">Last name</label>
+              <input type="text" placeholder="Sharma" value={formData.lastName} onChange={set('lastName')} className="input" />
+            </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-2 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Send className="w-4 h-4" />
-            <span>{loading ? 'Ingesting Lead...' : 'Submit Lead & Call AI Agent'}</span>
+          <div>
+            <label className="field-label">Phone number *</label>
+            <input type="tel" required placeholder="+91 98765 43210" value={formData.phone} onChange={set('phone')} className="input mono" style={{ fontSize: 14 }} />
+            <div className="text-[11.5px] faint mt-1.5">Include the country code, e.g. +91 or +1.</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="field-label">Email</label>
+              <input type="email" placeholder="rahul@company.com" value={formData.email} onChange={set('email')} className="input" />
+            </div>
+            <div>
+              <label className="field-label">Company</label>
+              <input type="text" placeholder="Company name" value={formData.company} onChange={set('company')} className="input" />
+            </div>
+          </div>
+
+          <div>
+            <label className="field-label flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> When should the agent call?</label>
+            <div className="grid grid-cols-4 gap-2">
+              {TIMING_OPTIONS.map(opt => {
+                const active = formData.delayOption === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, delayOption: opt.value })}
+                    className="rounded-xl px-2 py-2.5 text-center transition-all"
+                    style={{
+                      background: active ? 'var(--iris-soft)' : 'rgba(255,255,255,0.025)',
+                      border: `1px solid ${active ? 'rgba(139,124,246,0.45)' : 'var(--border)'}`,
+                      boxShadow: active ? '0 8px 20px -12px var(--iris-glow)' : 'none'
+                    }}
+                  >
+                    <div className="text-[13px] font-semibold" style={{ color: active ? '#fff' : 'var(--text)' }}>{opt.label}</div>
+                    <div className="text-[10.5px] faint">{opt.hint}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <button type="submit" disabled={loading} className="btn btn-primary btn-lg w-full mt-2">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {loading ? 'Adding lead…' : 'Add lead & start call'}
           </button>
         </form>
       </div>
-    </div>
+      </div>
+    </div>,
+    document.body
   );
 }

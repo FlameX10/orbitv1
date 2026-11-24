@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, PhoneCall, Clock, Bot, User, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Timer, Wallet, CalendarDays, PhoneOff, MessageSquareText, Cpu, Loader2, FileQuestion } from 'lucide-react';
 import TranscriptViewer from '../components/TranscriptViewer';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
+import { Avatar, EmptyState, PageLoader, RegionChip, StatusPill, formatDateTime, formatDuration, humanize } from '../components/ui';
 
 function getProviderTracking(call) {
   if (call.plivoCallUuid) return 'Call UUID: ' + call.plivoCallUuid;
@@ -19,6 +20,17 @@ function formatCallCost(call) {
   if (call.costStatus === 'NOT_BILLED') return 'Not billed';
   if (call.costStatus === 'UNAVAILABLE') return 'Unavailable';
   return 'Pending';
+}
+
+function Metric({ icon: Icon, label, value, title }) {
+  return (
+    <div className="rounded-2xl px-4 py-3.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }} title={title}>
+      <div className="flex items-center gap-2 eyebrow">
+        <Icon className="w-3.5 h-3.5" /> {label}
+      </div>
+      <div className="num text-[18px] font-bold mt-1.5" style={{ color: 'var(--text)' }}>{value}</div>
+    </div>
+  );
 }
 
 export default function CallDetail() {
@@ -70,87 +82,120 @@ export default function CallDetail() {
     }
   };
 
-  if (loading) return <div className="p-8 text-cyan-400 font-mono">Loading call record...</div>;
-  if (!call) return <div className="p-8 text-rose-400">Call record not found.</div>;
+  if (loading) return <PageLoader label="Loading call" />;
+  if (!call) {
+    return (
+      <div className="card">
+        <EmptyState
+          icon={FileQuestion}
+          title="Call not found"
+          text="This call record may have been removed."
+          action={<Link to="/calls" className="btn btn-secondary btn-sm">Back to calls</Link>}
+        />
+      </div>
+    );
+  }
 
   const isActive = ['QUEUED', 'INITIATING', 'RINGING', 'ANSWERED', 'IN_PROGRESS'].includes(call.status);
+  const name = `${call.lead?.firstName || ''} ${call.lead?.lastName || ''}`.trim() || 'Unknown lead';
 
   return (
     <div className="space-y-6">
-      <Link to="/calls" className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-cyan-400">
-        <ArrowLeft className="w-4 h-4" /> Back to Call Logs
+      <Link to="/calls" className="btn btn-ghost btn-sm -ml-2">
+        <ArrowLeft className="w-4 h-4" /> All calls
       </Link>
 
-      <div className="glass-panel p-6 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold text-white flex items-center gap-3">
-            Call Attempt #{call.attemptNumber}
-            <span className="text-xs px-2.5 py-1 rounded-full font-mono bg-cyan-950 border border-cyan-800 text-cyan-300">
-              {call.status}
-            </span>
-            {call.plivoRegion && (
-              <span className={`text-xs px-2.5 py-1 rounded-full font-mono font-bold ${
-                call.plivoRegion === 'IN' ? 'bg-amber-950 border border-amber-700 text-amber-300' : 'bg-indigo-950 border border-indigo-700 text-indigo-300'
-              }`}>
-                Plivo {call.plivoRegion}
-              </span>
-            )}
-          </h1>
-          <p className="text-xs text-slate-400 font-mono mt-1">
-            Lead: {call.lead?.firstName} {call.lead?.lastName} ({call.lead?.phone}) | {getProviderTracking(call)}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-4 text-xs font-mono text-slate-300">
-          <div>Duration: <strong className="text-white">{call.duration != null ? `${call.duration}s` : '—'}</strong></div>
-          <div title={call.plivoTotalRate != null ? `Rate: $${call.plivoTotalRate}/min, billed ${call.plivoBilledDuration || 0}s` : undefined}>
-            Call cost: <strong className="text-white">{formatCallCost(call)}</strong>
+      {/* Header */}
+      <section className="card card-glow overflow-hidden p-6 md:p-7">
+        <div className="orb" style={{ width: 260, height: 260, top: -130, right: -40, background: 'rgba(139,124,246,0.28)' }} />
+        <div className="relative flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          <div className="flex items-start gap-4 min-w-0">
+            <Avatar name={name} size={52} />
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-[24px] font-bold tracking-tight">{name}</h1>
+                <StatusPill status={call.status} />
+                {call.plivoRegion && <RegionChip region={call.plivoRegion} />}
+                <span className="chip">Attempt #{call.attemptNumber}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[12.5px] muted">
+                <span className="mono">{call.lead?.phone}</span>
+                {call.lead?.id && (
+                  <Link to={`/leads/${call.lead.id}`} className="hover:underline" style={{ color: '#b3a9ff' }}>View lead profile</Link>
+                )}
+              </div>
+              <div className="mono faint mt-1.5 truncate" title={getProviderTracking(call)}>{getProviderTracking(call)}</div>
+            </div>
           </div>
-          <div>Started: <strong className="text-white">{new Date(call.createdAt).toLocaleString()}</strong></div>
+
           {isActive && (
-            <button
-              onClick={handleEndCall}
-              disabled={ending}
-              className="px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors shadow-lg shadow-rose-950/50"
-            >
-              {ending ? 'Ending...' : 'End Active Call'}
+            <button onClick={handleEndCall} disabled={ending} className="btn btn-danger shrink-0">
+              {ending ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneOff className="w-4 h-4" />}
+              {ending ? 'Ending call…' : 'End call'}
             </button>
           )}
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-800">
-          <h2 className="text-lg font-bold text-white mb-4">Complete Call Transcript</h2>
-          <TranscriptViewer messages={call.messages || []} />
+        <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
+          <Metric icon={Timer} label="Duration" value={formatDuration(call.duration)} />
+          <Metric
+            icon={Wallet}
+            label="Call cost"
+            value={formatCallCost(call)}
+            title={call.plivoTotalRate != null ? `Rate: $${call.plivoTotalRate}/min, billed ${call.plivoBilledDuration || 0}s` : undefined}
+          />
+          <Metric icon={CalendarDays} label="Started" value={formatDateTime(call.createdAt)} />
+          <Metric icon={MessageSquareText} label="Messages" value={call.messages?.length || 0} />
         </div>
+      </section>
 
-        <div className="space-y-6">
-          <div className="glass-card p-6 rounded-2xl border border-slate-800">
-            <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              AI Call Summary
-            </h3>
-            <p className="text-xs text-slate-300 italic leading-relaxed">
-              {call.summary || call.qualificationResult?.summary || 'No summary generated yet.'}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <section className="card xl:col-span-2 overflow-hidden">
+          <div className="card-header">
+            <div>
+              <div className="card-title">Conversation</div>
+              <div className="card-subtitle">Full transcript between the AI agent and the lead</div>
+            </div>
+            {isActive && <span className="pill tone-warning"><span className="soundwave"><span /><span /><span /><span /></span> Live</span>}
+          </div>
+          <div className="p-5 md:p-6">
+            <TranscriptViewer messages={call.messages || []} />
+          </div>
+        </section>
+
+        <div className="space-y-5">
+          <section className="card overflow-hidden">
+            <div className="card-header">
+              <div className="card-title">
+                <span className="icon-tile" style={{ width: 30, height: 30, borderRadius: 9 }}><Sparkles className="w-4 h-4" /></span>
+                AI summary
+              </div>
+            </div>
+            <p className="p-6 text-[13.5px] leading-relaxed muted m-0">
+              {call.summary || call.qualificationResult?.summary || 'The summary is generated shortly after the call ends.'}
             </p>
-          </div>
+          </section>
 
-          <div className="glass-card p-6 rounded-2xl border border-slate-800 text-xs space-y-2">
-            <h3 className="text-sm font-bold text-white mb-2">Technical Telemetry</h3>
-            <div className="flex justify-between border-b border-slate-800/80 py-1">
-              <span className="text-slate-400">Agent Persona:</span>
-              <span className="text-slate-200 font-semibold">{call.agent?.name || 'Default Rep'}</span>
+          <section className="card overflow-hidden">
+            <div className="card-header">
+              <div className="card-title">
+                <span className="icon-tile" style={{ width: 30, height: 30, borderRadius: 9 }}><Cpu className="w-4 h-4" /></span>
+                Call details
+              </div>
             </div>
-            <div className="flex justify-between border-b border-slate-800/80 py-1">
-              <span className="text-slate-400">Trigger Reason:</span>
-              <span className="text-cyan-400 font-mono">{call.reason}</span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-slate-400">Messages Exchanged:</span>
-              <span className="text-white font-bold">{call.messages?.length || 0}</span>
-            </div>
-          </div>
+            <dl className="p-6 space-y-3.5 text-[13px] m-0">
+              {[
+                ['Agent', call.agent?.name || 'Default Rep'],
+                ['Trigger', call.reason?.startsWith('callback_') ? 'Scheduled callback' : humanize(call.reason)],
+                ['Messages', call.messages?.length || 0]
+              ].map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between gap-4">
+                  <dt className="faint">{k}</dt>
+                  <dd className="m-0 font-medium text-right truncate" style={{ color: 'var(--text)' }}>{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
         </div>
       </div>
     </div>

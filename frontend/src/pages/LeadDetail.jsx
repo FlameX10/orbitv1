@@ -1,9 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Phone, Calendar, CheckCircle2, User, Building, Mail, Clock, FileText } from 'lucide-react';
+import { ArrowLeft, Phone, Building2, Mail, MessageSquareText, Target, Wallet, UserCheck, CalendarRange, Sparkles, History, FileQuestion, Loader2, ClipboardList } from 'lucide-react';
 import QualificationBadge from '../components/QualificationBadge';
 import TranscriptViewer from '../components/TranscriptViewer';
 import api from '../services/api';
+import { useToast } from '../context/ToastContext';
+import { Avatar, EmptyState, PageLoader, StatusPill, formatDateTime, formatDuration, humanize } from '../components/ui';
+
+// Answers the AI agent saved during the call (lead.metadata), shown when present.
+const ANSWER_FIELDS = [
+  ['business_status', 'Business status'],
+  ['current_platform', 'Current platform'],
+  ['products_services', 'Products / services'],
+  ['target_market', 'Target market'],
+  ['launch_timeline', 'Launch timeline'],
+  ['compensation_plan', 'Compensation plan'],
+  ['additional_notes', 'Notes for consultant'],
+  ['callback_day', 'Preferred contact day'],
+  ['callback_time', 'Preferred contact time']
+];
 
 export default function LeadDetail() {
   const { id } = useParams();
@@ -12,6 +27,8 @@ export default function LeadDetail() {
   const [selectedAttempt, setSelectedAttempt] = useState(null);
   const [selectedCall, setSelectedCall] = useState(null);
   const [callLoading, setCallLoading] = useState(false);
+  const [triggering, setTriggering] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     async function loadLead() {
@@ -56,146 +73,211 @@ export default function LeadDetail() {
     };
   }, [selectedAttempt?.id]);
 
+  const triggerCall = async () => {
+    setTriggering(true);
+    try {
+      await api.post('/calls/trigger', { leadId: lead.id });
+      toast({ type: 'success', title: 'Call started', message: 'The AI agent is dialing this lead now.' });
+    } catch (err) {
+      toast({ type: 'error', title: 'Could not start the call', message: err.message });
+    } finally {
+      setTriggering(false);
+    }
+  };
+
   if (loading) {
-    return <div className="p-8 text-cyan-400 font-mono">Loading Lead File & Conversation History...</div>;
+    return <PageLoader label="Loading lead" />;
   }
 
   if (!lead) {
-    return <div className="p-8 text-rose-400">Lead record not found.</div>;
+    return (
+      <div className="card">
+        <EmptyState
+          icon={FileQuestion}
+          title="Lead not found"
+          text="This lead may have been removed."
+          action={<Link to="/leads" className="btn btn-secondary btn-sm">Back to leads</Link>}
+        />
+      </div>
+    );
   }
 
   const qual = lead.qualificationResult;
+  const name = `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
+  const answers = ANSWER_FIELDS.filter(([key]) => {
+    const v = lead.metadata?.[key];
+    return v !== undefined && v !== null && String(v).trim() !== '' && !String(v).startsWith('{{');
+  });
+  const selectedDuration = selectedCall?.duration ?? selectedAttempt?.duration;
 
   return (
-    <div className="space-y-8">
-      {/* Back Link */}
-      <Link to="/leads" className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-cyan-400">
-        <ArrowLeft className="w-4 h-4" /> Back to Lead CRM
+    <div className="space-y-6">
+      <Link to="/leads" className="btn btn-ghost btn-sm -ml-2">
+        <ArrowLeft className="w-4 h-4" /> All leads
       </Link>
 
-      {/* Header Info Banner */}
-      <div className="glass-panel p-6 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl font-extrabold text-white">
-              {lead.firstName} {lead.lastName}
-            </h1>
-            <QualificationBadge status={lead.status} score={lead.qualificationScore} />
+      {/* Profile header */}
+      <section className="card card-glow overflow-hidden p-6 md:p-7">
+        <div className="orb" style={{ width: 280, height: 280, top: -140, right: -60, background: 'rgba(139,124,246,0.28)' }} />
+        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="flex items-start gap-4 min-w-0">
+            <Avatar name={name} size={56} />
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-[26px] font-bold tracking-tight">{name}</h1>
+                <QualificationBadge status={lead.status} score={lead.qualificationScore} />
+              </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-2.5 text-[13px] muted">
+                <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 faint" /> <span className="mono">{lead.phone}</span></span>
+                <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 faint" /> {lead.email || 'No email'}</span>
+                <span className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 faint" /> {lead.company || 'No company'}</span>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-4 text-xs text-slate-400 font-mono">
-            <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-cyan-400" /> {lead.phone}</span>
-            <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-slate-400" /> {lead.email || 'N/A'}</span>
-            <span className="flex items-center gap-1.5"><Building className="w-3.5 h-3.5 text-slate-400" /> {lead.company || 'N/A'}</span>
-          </div>
+
+          <button
+            onClick={triggerCall}
+            disabled={lead.status === 'DO_NOT_CALL' || triggering}
+            className="btn btn-primary btn-lg shrink-0"
+            title={lead.status === 'DO_NOT_CALL' ? 'This lead asked not to be called' : undefined}
+          >
+            {triggering ? <Loader2 className="w-4 h-4 animate-spin" /> : <Phone className="w-4 h-4" />}
+            Call with AI agent
+          </button>
         </div>
+      </section>
 
-        <button
-          onClick={async () => {
-            await api.post('/calls/trigger', { leadId: lead.id });
-            alert('Outbound call queued!');
-          }}
-          disabled={lead.status === 'DO_NOT_CALL'}
-          className="px-4 py-2 bg-linear-to-r from-cyan-500 to-blue-600 text-slate-950 font-bold rounded-lg text-xs shadow-md cursor-pointer disabled:opacity-50"
-        >
-          Initiate Outbound Call
-        </button>
-      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        {/* Left column */}
+        <div className="space-y-5">
+          {answers.length > 0 && (
+            <section className="card overflow-hidden">
+              <div className="card-header">
+                <div className="card-title">
+                  <span className="icon-tile" style={{ width: 30, height: 30, borderRadius: 9 }}><ClipboardList className="w-4 h-4" /></span>
+                  Captured on the call
+                </div>
+              </div>
+              <dl className="p-5 space-y-3 m-0">
+                {answers.map(([key, label]) => (
+                  <div key={key} className="rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid var(--border)' }}>
+                    <dt className="eyebrow">{label}</dt>
+                    <dd className="m-0 mt-1 text-[13.5px]" style={{ color: 'var(--text)' }}>{String(lead.metadata[key])}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: BANT Qualification & Callbacks */}
-        <div className="space-y-6">
-          {/* BANT Card */}
-          <div className="glass-card p-6 rounded-2xl border border-slate-800">
-            <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-              BANT Qualification Analysis
-            </h2>
+          <section className="card overflow-hidden">
+            <div className="card-header">
+              <div className="card-title">
+                <span className="icon-tile" style={{ width: 30, height: 30, borderRadius: 9 }}><Sparkles className="w-4 h-4" /></span>
+                Qualification
+              </div>
+            </div>
 
             {qual ? (
-              <div className="space-y-3 text-xs">
-                <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
-                  <span className="font-semibold text-slate-400 block mb-0.5 uppercase tracking-wider">Project Need</span>
-                  <span className="text-white font-medium text-sm">{qual.need || 'Not extracted'}</span>
-                </div>
-                <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
-                  <span className="font-semibold text-slate-400 block mb-0.5 uppercase tracking-wider">Budget Range</span>
-                  <span className="text-emerald-400 font-mono font-bold text-sm">{qual.budget || 'Not extracted'}</span>
-                </div>
-                <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
-                  <span className="font-semibold text-slate-400 block mb-0.5 uppercase tracking-wider">Decision Authority</span>
-                  <span className="text-cyan-300 font-medium text-sm">{qual.authority || 'Not extracted'}</span>
-                </div>
-                <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
-                  <span className="font-semibold text-slate-400 block mb-0.5 uppercase tracking-wider">Timeline</span>
-                  <span className="text-amber-300 font-mono text-sm">{qual.timeline || 'Not extracted'}</span>
-                </div>
+              <div className="p-5 space-y-3">
+                {[
+                  { icon: Target, label: 'Need', value: qual.need },
+                  { icon: Wallet, label: 'Budget', value: qual.budget },
+                  { icon: UserCheck, label: 'Decision maker', value: qual.authority },
+                  { icon: CalendarRange, label: 'Timeline', value: qual.timeline }
+                ].map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="flex items-start gap-3 rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid var(--border)' }}>
+                    <Icon className="w-4 h-4 mt-0.5 shrink-0" style={{ color: 'var(--iris)' }} />
+                    <div className="min-w-0">
+                      <div className="eyebrow">{label}</div>
+                      <div className="text-[13.5px] mt-0.5" style={{ color: value ? 'var(--text)' : 'var(--text-3)' }}>{value || 'Not captured'}</div>
+                    </div>
+                  </div>
+                ))}
                 {qual.summary && (
-                  <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 mt-2">
-                    <span className="font-semibold text-slate-400 block mb-1 uppercase tracking-wider">AI Call Summary</span>
-                    <p className="text-slate-300 italic leading-relaxed">{qual.summary}</p>
+                  <div className="rounded-xl px-4 py-3.5" style={{ background: 'var(--iris-soft)', border: '1px solid rgba(139,124,246,0.22)' }}>
+                    <div className="eyebrow" style={{ color: '#b3a9ff' }}>AI summary</div>
+                    <p className="text-[13.5px] leading-relaxed mt-1 m-0" style={{ color: 'var(--text)' }}>{qual.summary}</p>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="p-4 text-center text-slate-500 text-xs italic">
-                Post-call AI evaluation pending or call not completed.
-              </div>
+              <EmptyState icon={Sparkles} title="Not evaluated yet" text="The AI evaluation appears shortly after a call is completed." />
             )}
-          </div>
+          </section>
 
-          {/* Call Attempts History Selector */}
-          <div className="glass-card p-6 rounded-2xl border border-slate-800">
-            <h3 className="text-sm font-bold text-white mb-3">Call Attempts ({lead.callAttempts?.length || 0})</h3>
-            <div className="space-y-2">
-              {lead.callAttempts?.map((attempt) => (
-                <button
-                  key={attempt.id}
-                  onClick={() => setSelectedAttempt(attempt)}
-                  className={`w-full p-3 rounded-xl text-left border transition-all text-xs flex items-center justify-between cursor-pointer ${
-                    selectedAttempt?.id === attempt.id
-                      ? 'bg-cyan-950/80 border-cyan-500 text-cyan-200'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
-                >
-                  <div>
-                    <div className="font-bold text-white">Attempt #{attempt.attemptNumber}</div>
-                    <div className="text-[11px] font-mono text-slate-400">{new Date(attempt.createdAt).toLocaleString()}</div>
-                  </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-slate-950 border border-slate-800 text-cyan-400">
-                    {attempt.status}
-                  </span>
-                </button>
-              ))}
+          <section className="card overflow-hidden">
+            <div className="card-header">
+              <div className="card-title">
+                <span className="icon-tile" style={{ width: 30, height: 30, borderRadius: 9 }}><History className="w-4 h-4" /></span>
+                Call history
+              </div>
+              <span className="pill tone-neutral num">{lead.callAttempts?.length || 0}</span>
             </div>
-          </div>
+            <div className="p-4 space-y-2">
+              {(lead.callAttempts || []).length === 0 && (
+                <div className="text-[13px] faint text-center py-6">No calls yet.</div>
+              )}
+              {lead.callAttempts?.map((attempt) => {
+                const active = selectedAttempt?.id === attempt.id;
+                return (
+                  <button
+                    key={attempt.id}
+                    onClick={() => setSelectedAttempt(attempt)}
+                    className="w-full text-left rounded-xl px-4 py-3 flex items-center justify-between gap-3 transition-all"
+                    style={{
+                      background: active ? 'var(--iris-soft)' : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${active ? 'rgba(139,124,246,0.35)' : 'var(--border)'}`,
+                      boxShadow: active ? '0 8px 24px -14px var(--iris-glow)' : 'none'
+                    }}
+                  >
+                    <div>
+                      <div className="font-semibold text-[13.5px]" style={{ color: 'var(--text)' }}>Attempt #{attempt.attemptNumber}</div>
+                      <div className="text-[12px] faint">{formatDateTime(attempt.createdAt)}</div>
+                    </div>
+                    <StatusPill status={attempt.status} />
+                  </button>
+                );
+              })}
+            </div>
+          </section>
         </div>
 
-        {/* Right Column: Selected Call Attempt Transcript Viewer */}
-        <div className="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-800">
-          <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-4">
-            <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <FileText className="w-5 h-5 text-cyan-400" />
-                Call Transcript & Diagnostics
-              </h2>
-              <p className="text-xs text-slate-400 font-mono">
-                Twilio Call SID: {selectedCall?.twilioCallSid || selectedAttempt?.twilioCallSid || 'Not assigned'}
-              </p>
+        {/* Transcript */}
+        <section className="card xl:col-span-2 overflow-hidden">
+          <div className="card-header">
+            <div className="min-w-0">
+              <div className="card-title">
+                <span className="icon-tile" style={{ width: 30, height: 30, borderRadius: 9 }}><MessageSquareText className="w-4 h-4" /></span>
+                Conversation
+              </div>
+              <div className="card-subtitle">
+                {selectedAttempt ? `Attempt #${selectedAttempt.attemptNumber} · ${humanize(selectedAttempt.status)}` : 'Select a call to view its transcript'}
+              </div>
             </div>
-
             {selectedAttempt && (
-              <div className="text-xs font-mono text-slate-400">
-                Duration: <strong className="text-white">{(selectedCall?.duration ?? selectedAttempt.duration) != null ? `${selectedCall?.duration ?? selectedAttempt.duration}s` : '—'}</strong>
+              <div className="text-right shrink-0">
+                <div className="eyebrow">Duration</div>
+                <div className="num font-bold text-[15px]" style={{ color: 'var(--text)' }}>
+                  {selectedDuration != null ? formatDuration(selectedDuration) : '—'}
+                </div>
               </div>
             )}
           </div>
 
-          {callLoading ? (
-            <div className="p-8 text-center text-cyan-400 font-mono">Loading conversation...</div>
-          ) : (
-            <TranscriptViewer messages={selectedCall?.messages || []} />
-          )}
-        </div>
+          <div className="p-5 md:p-6">
+            {callLoading ? (
+              <div className="space-y-4">
+                {[0, 1, 2, 3].map(i => (
+                  <div key={i} className={`flex ${i % 2 ? 'justify-end' : ''}`}>
+                    <div className="skeleton h-14" style={{ width: `${50 + (i % 3) * 12}%`, borderRadius: 16 }} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <TranscriptViewer messages={selectedCall?.messages || []} />
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

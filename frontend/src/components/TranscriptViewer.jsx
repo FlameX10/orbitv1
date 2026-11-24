@@ -1,6 +1,7 @@
 import React from 'react';
-import { Bot, User, Clock, ShieldAlert } from 'lucide-react';
+import { Bot, User, Info, MessageSquareText } from 'lucide-react';
 import { format } from 'date-fns';
+import { EmptyState } from './ui';
 
 const AGENT_SPEAKERS = ['ai_agent', 'ai agent', 'agent', 'ai', 'assistant', 'bot'];
 const CUSTOMER_SPEAKERS = ['customer', 'user', 'human', 'caller', 'lead'];
@@ -22,14 +23,16 @@ function resolveSpeaker(msg) {
 export default function TranscriptViewer({ messages = [] }) {
   if (!messages || messages.length === 0) {
     return (
-      <div className="p-8 text-center glass-panel rounded-xl border border-slate-800 text-slate-500 text-sm">
-        No conversation transcript records recorded for this attempt yet.
-      </div>
+      <EmptyState
+        icon={MessageSquareText}
+        title="No transcript yet"
+        text="The conversation appears here once the call is underway or the recording is processed."
+      />
     );
   }
 
   return (
-    <div className="transcript-viewer space-y-4 max-h-[500px] overflow-y-auto pr-2">
+    <div className="transcript-viewer space-y-4 max-h-[620px] overflow-y-auto pr-2 scroll-thin">
       {messages.map((msg, index) => {
         const { isAI, text } = resolveSpeaker(msg);
         const isSystem = msg.role === 'SYSTEM' || msg.role === 'TOOL';
@@ -37,9 +40,9 @@ export default function TranscriptViewer({ messages = [] }) {
 
         if (isSystem) {
           return (
-            <div key={msg.id || index} className="flex justify-center my-2">
-              <span className="px-3 py-1 rounded-full text-xs font-mono bg-slate-900 border border-slate-800 text-slate-400 flex items-center gap-1.5">
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+            <div key={msg.id || index} className="flex justify-center animate-fade">
+              <span className="pill tone-neutral" style={{ height: 'auto', padding: '6px 12px' }}>
+                <Info className="w-3.5 h-3.5" style={{ color: 'var(--gold)' }} />
                 {msg.content}
               </span>
             </div>
@@ -49,32 +52,35 @@ export default function TranscriptViewer({ messages = [] }) {
         return (
           <div
             key={msg.id || index}
-            className={`flex gap-3 ${isAI ? 'justify-start' : 'justify-end'}`}
+            className={`flex gap-3 animate-fade ${isAI ? 'justify-start' : 'justify-end'}`}
+            style={{ animationDelay: `${Math.min(index, 12) * 30}ms` }}
           >
             {isAI && (
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-slate-950 font-bold shadow-md shadow-cyan-500/20 shrink-0">
-                <Bot className="w-4 h-4 text-slate-950" />
+              <div
+                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-5"
+                style={{ background: 'linear-gradient(140deg, #a99dff, #6f5cf2)', boxShadow: '0 8px 18px -8px var(--iris-glow)' }}
+              >
+                <Bot className="w-4 h-4 text-white" />
               </div>
             )}
 
-            <div className={`transcript-bubble ${isAI ? 'transcript-bubble-ai' : 'transcript-bubble-human'} max-w-[75%] rounded-2xl p-4 shadow-lg ${
-              isAI 
-                ? 'bg-slate-900 border border-cyan-900/40 text-slate-100 rounded-tl-none' 
-                : 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-tr-none'
-            }`}>
-              <div className="transcript-meta flex items-center justify-between gap-4 mb-2">
-                <span className="font-semibold uppercase tracking-wider">{isAI ? 'AI Agent' : 'Human Lead'}</span>
-                <span className="font-mono flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {timestampFormatted}
-                </span>
+            <div className={`max-w-[78%] ${isAI ? '' : 'items-end'} flex flex-col`}>
+              <div className={`transcript-meta flex items-center gap-2 mb-1.5 ${isAI ? '' : 'justify-end'}`}>
+                <span>{isAI ? 'AI Agent' : 'Lead'}</span>
+                <span className="faint">·</span>
+                <span className="tabular-nums" style={{ letterSpacing: 0 }}>{timestampFormatted}</span>
               </div>
-              <p className="transcript-content whitespace-pre-wrap">{text}</p>
+              <div className={`transcript-bubble rounded-2xl px-4 py-3 ${isAI ? 'transcript-bubble-ai' : 'transcript-bubble-human'}`}>
+                <p className="transcript-content whitespace-pre-wrap m-0">{text}</p>
+              </div>
             </div>
 
             {!isAI && (
-              <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 shrink-0">
-                <User className="w-4 h-4" />
+              <div
+                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-5"
+                style={{ background: 'var(--surface-3)', border: '1px solid var(--border-strong)' }}
+              >
+                <User className="w-4 h-4 muted" />
               </div>
             )}
           </div>
