@@ -2,6 +2,23 @@ import React from 'react';
 import { Bot, User, Clock, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 
+const AGENT_SPEAKERS = ['ai_agent', 'ai agent', 'agent', 'ai', 'assistant', 'bot'];
+const CUSTOMER_SPEAKERS = ['customer', 'user', 'human', 'caller', 'lead'];
+
+// Plivo transcripts arrive as "[Ai_Agent] text" / "[Customer] text" and may all be
+// stored with the same role, so the speaker tag in the text decides the side.
+function resolveSpeaker(msg) {
+  const content = typeof msg.content === 'string' ? msg.content : '';
+  const match = content.match(/^\s*\[([^\]]+)\]\s*/);
+  if (match) {
+    const tag = match[1].trim().toLowerCase();
+    const text = content.slice(match[0].length);
+    if (AGENT_SPEAKERS.includes(tag)) return { isAI: true, text };
+    if (CUSTOMER_SPEAKERS.includes(tag)) return { isAI: false, text };
+  }
+  return { isAI: msg.role === 'AI', text: content };
+}
+
 export default function TranscriptViewer({ messages = [] }) {
   if (!messages || messages.length === 0) {
     return (
@@ -14,7 +31,7 @@ export default function TranscriptViewer({ messages = [] }) {
   return (
     <div className="transcript-viewer space-y-4 max-h-[500px] overflow-y-auto pr-2">
       {messages.map((msg, index) => {
-        const isAI = msg.role === 'AI';
+        const { isAI, text } = resolveSpeaker(msg);
         const isSystem = msg.role === 'SYSTEM' || msg.role === 'TOOL';
         const timestampFormatted = msg.timestamp ? format(new Date(msg.timestamp), 'HH:mm:ss') : '--:--';
 
@@ -46,13 +63,13 @@ export default function TranscriptViewer({ messages = [] }) {
                 : 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-tr-none'
             }`}>
               <div className="transcript-meta flex items-center justify-between gap-4 mb-2">
-                <span className="font-semibold uppercase tracking-wider">{isAI ? 'ElevenLabs AI Agent' : 'Human Lead'}</span>
+                <span className="font-semibold uppercase tracking-wider">{isAI ? 'AI Agent' : 'Human Lead'}</span>
                 <span className="font-mono flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   {timestampFormatted}
                 </span>
               </div>
-              <p className="transcript-content whitespace-pre-wrap">{msg.content}</p>
+              <p className="transcript-content whitespace-pre-wrap">{text}</p>
             </div>
 
             {!isAI && (
