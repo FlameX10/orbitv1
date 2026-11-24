@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -103,22 +103,57 @@ export function ClientMark({ size = 38 }) {
   );
 }
 
+/**
+ * Orbit mark: a planet ring in the theme gradient on a dark glass tile.
+ * The gold orbit passes behind the planet at the top and in front at the bottom.
+ */
 export function BrandMark({ size = 38 }) {
+  const uid = useId().replace(/:/g, '');
+  const planet = `orbit-planet-${uid}`;
+  const ring = `orbit-ring-${uid}`;
+  const back = `orbit-back-${uid}`;
+  const front = `orbit-front-${uid}`;
   return (
     <div
       className="relative flex items-center justify-center shrink-0"
       style={{
         width: size,
         height: size,
-        borderRadius: size * 0.32,
-        background: 'linear-gradient(140deg, #a99dff 0%, #6f5cf2 50%, #2e2373 100%)',
-        boxShadow: '0 1px 0 rgba(255,255,255,0.35) inset, 0 10px 26px -10px rgba(139,124,246,0.8)'
+        borderRadius: size * 0.3,
+        background: 'radial-gradient(120% 120% at 30% 20%, #26214a 0%, #15131f 55%, #0e0d16 100%)',
+        border: '1px solid rgba(139,124,246,0.35)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.08) inset, 0 10px 24px -12px rgba(139,124,246,0.75)'
       }}
     >
-      <svg viewBox="0 0 24 24" width={size * 0.56} height={size * 0.56} fill="none" aria-hidden="true">
-        <circle cx="12" cy="12" r="7.2" stroke="#fff" strokeOpacity="0.95" strokeWidth="2" />
-        <ellipse cx="12" cy="12" rx="10.5" ry="3.6" stroke="#e8c47c" strokeWidth="1.6" transform="rotate(-28 12 12)" />
-        <circle cx="12" cy="12" r="2.4" fill="#fff" />
+      <svg viewBox="0 0 32 32" width={size * 0.72} height={size * 0.72} fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id={planet} x1="8" y1="8" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stopColor="#ffffff" />
+            <stop offset="1" stopColor="#b9aeff" />
+          </linearGradient>
+          <linearGradient id={ring} x1="3" y1="16" x2="29" y2="16" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stopColor="#c9a052" stopOpacity="0.55" />
+            <stop offset="0.5" stopColor="#f3d99b" />
+            <stop offset="1" stopColor="#e8c47c" />
+          </linearGradient>
+          <clipPath id={back} clipPathUnits="userSpaceOnUse"><rect x="0" y="0" width="32" height="16" /></clipPath>
+          <clipPath id={front} clipPathUnits="userSpaceOnUse"><rect x="0" y="16" width="32" height="16" /></clipPath>
+        </defs>
+
+        {/* Back half of the orbit (behind the planet) */}
+        <g transform="rotate(-24 16 16)">
+          <ellipse cx="16" cy="16" rx="13" ry="4.6" stroke={`url(#${ring})`} strokeWidth="1.5" strokeOpacity="0.6" clipPath={`url(#${back})`} />
+        </g>
+
+        {/* Planet */}
+        <circle cx="16" cy="16" r="7.4" fill="#15131f" stroke={`url(#${planet})`} strokeWidth="2.2" />
+        <circle cx="16" cy="16" r="2.6" fill="#ffffff" />
+
+        {/* Front half of the orbit + satellite */}
+        <g transform="rotate(-24 16 16)">
+          <ellipse cx="16" cy="16" rx="13" ry="4.6" stroke={`url(#${ring})`} strokeWidth="1.7" clipPath={`url(#${front})`} />
+          <circle cx="25.96" cy="18.96" r="1.7" fill="#f3d99b" />
+        </g>
       </svg>
     </div>
   );

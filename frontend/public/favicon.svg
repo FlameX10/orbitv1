@@ -1,13 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#a99dff"/>
-      <stop offset="0.5" stop-color="#6f5cf2"/>
-      <stop offset="1" stop-color="#2e2373"/>
+    <radialGradient id="tile" cx="0.3" cy="0.2" r="1.2">
+      <stop offset="0" stop-color="#26214a"/>
+      <stop offset="0.55" stop-color="#15131f"/>
+      <stop offset="1" stop-color="#0e0d16"/>
+    </radialGradient>
+    <linearGradient id="planet" x1="16" y1="16" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#b9aeff"/>
     </linearGradient>
+    <linearGradient id="ring" x1="6" y1="32" x2="58" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c9a052" stop-opacity="0.55"/>
+      <stop offset="0.5" stop-color="#f3d99b"/>
+      <stop offset="1" stop-color="#e8c47c"/>
+    </linearGradient>
+    <clipPath id="back" clipPathUnits="userSpaceOnUse"><rect x="0" y="0" width="64" height="32"/></clipPath>
+    <clipPath id="front" clipPathUnits="userSpaceOnUse"><rect x="0" y="32" width="64" height="32"/></clipPath>
   </defs>
-  <rect width="64" height="64" rx="20" fill="url(#g)"/>
-  <circle cx="32" cy="32" r="13" fill="none" stroke="#fff" stroke-width="3.6"/>
-  <ellipse cx="32" cy="32" rx="19" ry="6.5" fill="none" stroke="#e8c47c" stroke-width="2.8" transform="rotate(-28 32 32)"/>
-  <circle cx="32" cy="32" r="4.4" fill="#fff"/>
+  <rect x="1" y="1" width="62" height="62" rx="19" fill="url(#tile)" stroke="#8b7cf6" stroke-opacity="0.45" stroke-width="2"/>
+  <g transform="rotate(-24 32 32)">
+    <ellipse cx="32" cy="32" rx="25" ry="9" fill="none" stroke="url(#ring)" stroke-width="3" stroke-opacity="0.6" clip-path="url(#back)"/>
+  </g>
+  <circle cx="32" cy="32" r="14.5" fill="#15131f" stroke="url(#planet)" stroke-width="4.2"/>
+  <circle cx="32" cy="32" r="5" fill="#ffffff"/>
+  <g transform="rotate(-24 32 32)">
+    <ellipse cx="32" cy="32" rx="25" ry="9" fill="none" stroke="url(#ring)" stroke-width="3.4" clip-path="url(#front)"/>
+    <circle cx="51.2" cy="37.8" r="3.2" fill="#f3d99b"/>
+  </g>
 </svg>
