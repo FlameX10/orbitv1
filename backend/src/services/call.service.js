@@ -420,9 +420,8 @@ class CallService {
       data: {
         status: 'CANCELED',
         endedAt: new Date(),
-        duration: attempt.duration || (attempt.startedAt
-          ? Math.max(1, Math.floor((Date.now() - new Date(attempt.startedAt).getTime()) / 1000))
-          : null),
+        // Never estimate: the exact time comes from Plivo via the cost job.
+        duration: attempt.duration ?? null,
         failureReason: terminationError
           ? `User terminated call, but provider termination failed: ${terminationError.message}`
           : 'User terminated call from dashboard controls.'
@@ -444,7 +443,7 @@ class CallService {
 
     // A dashboard-ended call skips the hangup webhook's processing, so queue
     // the cost fetch here. Never let this fail the termination request.
-    if (attempt.plivoCallUuid) {
+    {
       try {
         const { scheduleJob, JOB_QUEUES } = require('../config/queue');
         await scheduleJob(JOB_QUEUES.FETCH_CALL_COST, {

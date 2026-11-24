@@ -102,7 +102,7 @@ export default function CallDetail() {
         </div>
 
         <div className="flex items-center gap-4 text-xs font-mono text-slate-300">
-          <div>Duration: <strong className="text-white">{call.duration || 0}s</strong></div>
+          <div>Duration: <strong className="text-white">{call.duration != null ? `${call.duration}s` : '—'}</strong></div>
           <div title={call.plivoTotalRate != null ? `Rate: $${call.plivoTotalRate}/min, billed ${call.plivoBilledDuration || 0}s` : undefined}>
             Call cost: <strong className="text-white">{formatCallCost(call)}</strong>
           </div>

@@ -72,6 +72,77 @@ describe('Cost service', () => {
     }));
   });
 
+  it('saves the exact Plivo bill_duration as the call duration', async () => {
+    const update = mockAttempt({ duration: 408374 });
+    vi.spyOn(plivoService, 'getCallCost').mockResolvedValue({
+      found: true, totalAmount: 0.017, totalRate: 0.0085, billedDuration: 120, billDuration: 95, callDuration: 95
+    });
+
+    await costService.fetchAndStoreCallCost('attempt-1');
+
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ duration: 95, plivoBilledDuration: 120 })
+    }));
+  });
+
+  it('links a call with no UUID to the single Plivo call at the same time', async () => {
+    const startedAt = new Date(Date.now() - 60 * 60 * 1000);
+    const update = mockAttempt({
+      plivoCallUuid: null, status: 'FAILED', startedAt, lead: { phone: '+919800000001' }
+    });
+    vi.spyOn(prisma.callAttempt, 'findFirst').mockResolvedValue(null);
+    const plivoTime = new Date(startedAt.getTime() + 20 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+    vi.spyOn(plivoService, 'listCallsToNumber').mockResolvedValue([
+      { call_uuid: 'real-uuid', initiation_time: `${plivoTime}+00:00` },
+      { call_uuid: 'other-uuid', initiation_time: '2020-01-01 00:00:00+00:00' }
+    ]);
+    const getCallCost = vi.spyOn(plivoService, 'getCallCost').mockResolvedValue({
+      found: true, totalAmount: 0.01, totalRate: 0.01, billedDuration: 60, billDuration: 42
+    });
+
+    const result = await costService.fetchAndStoreCallCost('attempt-1');
+
+    expect(result.status).toBe('FETCHED');
+    expect(update).toHaveBeenCalledWith({ where: { id: 'attempt-1' }, data: { plivoCallUuid: 'real-uuid' } });
+    expect(getCallCost).toHaveBeenCalledWith(expect.objectContaining({ callUuid: 'real-uuid' }));
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ duration: 42 })
+    }));
+  });
+
+  it('records no duration when Plivo has no call for a stuck attempt', async () => {
+    const update = mockAttempt({
+      plivoCallUuid: null, status: 'FAILED', startedAt: new Date(Date.now() - 3600000), lead: { phone: '+919800000001' }
+    });
+    vi.spyOn(plivoService, 'listCallsToNumber').mockResolvedValue([]);
+
+    const result = await costService.fetchAndStoreCallCost('attempt-1');
+
+    expect(result.status).toBe('NOT_BILLED');
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ costStatus: 'NOT_BILLED', duration: null })
+    }));
+  });
+
+  it('never guesses when two Plivo calls match the same time', async () => {
+    const startedAt = new Date(Date.now() - 3600000);
+    const update = mockAttempt({ plivoCallUuid: null, status: 'FAILED', startedAt, lead: { phone: '+919800000001' } });
+    const t = startedAt.toISOString().replace('T', ' ').slice(0, 19);
+    vi.spyOn(plivoService, 'listCallsToNumber').mockResolvedValue([
+      { call_uuid: 'a', initiation_time: `${t}+00:00` },
+      { call_uuid: 'b', initiation_time: `${t}+00:00` }
+    ]);
+    const getCallCost = vi.spyOn(plivoService, 'getCallCost');
+
+    const result = await costService.fetchAndStoreCallCost('attempt-1');
+
+    expect(result.status).toBe('UNAVAILABLE');
+    expect(getCallCost).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ costStatus: 'UNAVAILABLE' })
+    }));
+  });
+
   it('marks unanswered calls as not billed without calling Plivo', async () => {
     const update = mockAttempt({ status: 'NO_ANSWER', answeredAt: null });
     const getCallCost = vi.spyOn(plivoService, 'getCallCost');
@@ -143,6 +214,9 @@ describe('Cost service', () => {
       expect(summary.byRegion.US.totalCost).toBeCloseTo(0.0115, 4);
       expect(summary.daily.map(d => d.date)).toEqual(['2026-11-20', '2026-11-21']);
       expect(summary.totals.callMinutes).toBeCloseTo(140 / 60, 2);
+      // The call with unknown duration is excluded from the average.
+      expect(summary.totals.callsWithDuration).toBe(3);
+      expect(summary.totals.avgMinutesPerCall).toBeCloseTo(140 / 60 / 3, 2);
       expect(summary.totals.callsWithBilling).toBe(3);
       expect(summary.totals.billingCoverage).toBe(75);
 

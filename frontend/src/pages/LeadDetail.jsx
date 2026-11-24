@@ -185,7 +185,7 @@ export default function LeadDetail() {
 
             {selectedAttempt && (
               <div className="text-xs font-mono text-slate-400">
-                Duration: <strong className="text-white">{selectedCall?.duration || selectedAttempt.duration || 0}s</strong>
+                Duration: <strong className="text-white">{(selectedCall?.duration ?? selectedAttempt.duration) != null ? `${selectedCall?.duration ?? selectedAttempt.duration}s` : '—'}</strong>
               </div>
             )}
           </div>

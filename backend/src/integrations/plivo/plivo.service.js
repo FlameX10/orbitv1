@@ -202,6 +202,7 @@ class PlivoService {
         totalRate: toNumber(cdr.total_rate),
         billedDuration: toNumber(cdr.billed_duration),
         billDuration: toNumber(cdr.bill_duration),
+        callDuration: toNumber(cdr.call_duration),
         region: config.region
       };
     } catch (err) {
@@ -211,6 +212,47 @@ class PlivoService {
       const errorDetail = err.response?.data?.error || err.response?.data?.message || err.message;
       throw new Error(`Plivo [${config.region}] CDR fetch failed: ${errorDetail}`);
     }
+  }
+
+  /**
+   * List Plivo CDRs to one destination number whose end_time falls in a window.
+   * Endpoint: GET https://api.plivo.com/v1/Account/{auth_id}/Call/?to_number=..&end_time__gte=..&end_time__lte=..
+   * Plivo allows at most 20 results per page and a 30-day window within the last 90 days.
+   */
+  async listCallsToNumber({ toNumber, windowStart, windowEnd, region = 'US', maxPages = 5 }) {
+    const regionKey = String(region).toLowerCase() === 'in' ? 'in' : 'us';
+    const config = this.getRegionalConfig(regionKey);
+    if (!config.authId || !config.authToken) {
+      throw new Error(`Cannot list calls: Plivo Auth ID / Token missing for region [${config.region}].`);
+    }
+
+    const fmt = (date) => date.toISOString().replace('T', ' ').slice(0, 19);
+    const url = `https://api.plivo.com/v1/Account/${config.authId}/Call/`;
+    const digits = String(toNumber || '').replace(/[^\d]/g, '');
+    if (!digits) return [];
+
+    // The docs do not state whether "+" is expected, so try without it first.
+    for (const candidate of [digits, `+${digits}`]) {
+      const results = [];
+      for (let page = 0; page < maxPages; page++) {
+        const response = await axios.get(url, {
+          auth: { username: config.authId, password: config.authToken },
+          params: {
+            to_number: candidate,
+            end_time__gte: fmt(windowStart),
+            end_time__lte: fmt(windowEnd),
+            limit: 20,
+            offset: page * 20
+          },
+          timeout: 10000
+        });
+        const objects = response.data?.objects || [];
+        results.push(...objects);
+        if (objects.length < 20 || !response.data?.meta?.next) break;
+      }
+      if (results.length) return results;
+    }
+    return [];
   }
 
   /**

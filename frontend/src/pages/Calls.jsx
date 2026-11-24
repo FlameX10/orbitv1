@@ -130,7 +130,7 @@ export default function Calls() {
                       {call.status}
                     </span>
                   </td>
-                  <td className="p-4 font-mono text-xs text-slate-300">{call.duration ? `${call.duration}s` : '--'}</td>
+                  <td className="p-4 font-mono text-xs text-slate-300">{call.duration != null ? `${call.duration}s` : '—'}</td>
                   <td className="p-4 font-mono text-xs text-slate-400">{new Date(call.createdAt).toLocaleString()}</td>
                   <td className="p-4 text-right">
                     <Link

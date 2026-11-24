@@ -1,6 +1,9 @@
 /**
- * One-time backfill: fetch the real Plivo charge for past calls that have no cost yet.
- * Plivo keeps CDRs for 90 days, so older calls are skipped.
+ * One-time backfill:
+ *  1. clears call durations that were estimated instead of reported by Plivo;
+ *  2. fetches the exact duration and real charge from Plivo for past calls.
+ * Plivo keeps CDRs for 90 days, so older calls are skipped (their unknown
+ * durations stay empty rather than estimated).
  *
  * Usage (Render shell or locally with production env):
  *   npm run costs:backfill            -> process calls from the last 90 days
@@ -14,6 +17,22 @@ async function run() {
   const days = Math.min(Math.max(parseInt(process.argv[2] || '90', 10) || 90, 1), 90);
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
+  // Step 1: remove durations that were estimated (time since call start) rather
+  // than reported by Plivo. Stale-reaped and dashboard-ended calls never received
+  // a provider duration, so their stored values are not real call time.
+  const cleared = await prisma.callAttempt.updateMany({
+    where: {
+      duration: { not: null },
+      OR: [
+        { failureReason: { startsWith: 'STALE_REAPED' } },
+        { status: 'CANCELED' }
+      ]
+    },
+    data: { duration: null }
+  });
+  logger.info(`Cleared ${cleared.count} estimated (non-provider) call duration(s).`);
+
+  // Step 2: fetch exact duration and cost from Plivo.
   const attempts = await prisma.callAttempt.findMany({
     where: {
       createdAt: { gte: since },

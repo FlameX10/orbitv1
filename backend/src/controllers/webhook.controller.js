@@ -946,11 +946,9 @@ class WebhookController {
         }
       }
 
-      // Calculate fallback duration if payload duration is null
-      let finalDuration = (duration !== null && !isNaN(duration) && duration > 0) ? duration : attempt.duration;
-      if ((finalDuration === null || finalDuration === 0) && attempt.startedAt) {
-        finalDuration = Math.max(1, Math.floor((Date.now() - new Date(attempt.startedAt).getTime()) / 1000));
-      }
+      // Use only the provider-reported duration. When it is missing, leave it
+      // unknown; the cost job fills the exact time from the Plivo CDR.
+      const finalDuration = (duration !== null && !isNaN(duration) && duration >= 0) ? duration : attempt.duration;
 
       const updatedAttempt = await prisma.callAttempt.update({
         where: { id: attempt.id },

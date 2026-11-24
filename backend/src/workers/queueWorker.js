@@ -146,7 +146,7 @@ async function startWorkers() {
         status: { in: ['QUEUED', 'INITIATING', 'RINGING', 'ANSWERED', 'IN_PROGRESS'] },
         startedAt: { lt: cutoff }
       },
-      select: { id: true, leadId: true, startedAt: true }
+      select: { id: true, leadId: true }
     });
     for (const attempt of staleAttempts) {
       const updated = await prisma.callAttempt.updateMany({
@@ -155,9 +155,10 @@ async function startWorkers() {
           status: { in: ['QUEUED', 'INITIATING', 'RINGING', 'ANSWERED', 'IN_PROGRESS'] }
         },
         data: {
+          // Duration is left unknown: no hangup means no real call time. The
+          // cost job fills the exact time from Plivo if the call really happened.
           status: 'FAILED',
           endedAt: new Date(),
-          duration: Math.max(1, Math.floor((Date.now() - attempt.startedAt.getTime()) / 1000)),
           failureReason: `STALE_REAPED: no provider hangup callback within ${env.staleCallSeconds}s`
         }
       });
@@ -172,6 +173,12 @@ async function startWorkers() {
           status: 'FAILED',
           reason: 'stale_call_reaped'
         });
+        try {
+          await boss.send(JOB_QUEUES.FETCH_CALL_COST, { callAttemptId: attempt.id, fetchAttempt: 1 },
+            { startAfter: 120, retryLimit: 0 });
+        } catch (err) {
+          logger.warn('Could not enqueue cost fetch for reaped call', { callAttemptId: attempt.id, error: err.message });
+        }
       }
     }
     if (staleAttempts.length) {

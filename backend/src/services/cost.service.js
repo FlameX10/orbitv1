@@ -11,6 +11,9 @@ const MAX_FETCH_ATTEMPTS = RETRY_DELAYS_SECONDS.length + 1;
 // Plivo does not bill calls that were never answered.
 const UNANSWERED_STATUSES = ['NO_ANSWER', 'BUSY'];
 const ACTIVE_STATUSES = ['QUEUED', 'INITIATING', 'RINGING', 'ANSWERED', 'IN_PROGRESS'];
+const DAY_MS = 24 * 60 * 60 * 1000;
+// A Plivo call matches an attempt only if it started within 10 minutes of it.
+const MATCH_WINDOW_MS = 10 * 60 * 1000;
 
 class CostService {
   getRetryDelaySeconds(fetchAttempt) {
@@ -25,12 +28,66 @@ class CostService {
   }
 
   /**
+   * Plivo CDR times may come with or without a UTC offset. Without one, the
+   * zone is not documented, so return both UTC and IST readings.
+   */
+  _parsePlivoTime(value) {
+    if (!value || typeof value !== 'string') return [];
+    const text = value.trim().replace(' ', 'T');
+    if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(text)) {
+      const date = new Date(text);
+      return Number.isNaN(date.getTime()) ? [] : [date];
+    }
+    const asUtc = new Date(`${text}Z`);
+    const asIst = new Date(`${text}+05:30`);
+    return [asUtc, asIst].filter(d => !Number.isNaN(d.getTime()));
+  }
+
+  /**
+   * Find the single Plivo call that belongs to an attempt with no linked UUID.
+   * Returns { result: 'match', callUuid } | { result: 'none' } | { result: 'ambiguous' | 'unsupported' }.
+   */
+  async _findPlivoCallForAttempt(attempt) {
+    const startedAt = attempt.startedAt || attempt.createdAt;
+    const phone = attempt.lead?.phone;
+    if (!startedAt || !phone) return { result: 'unsupported' };
+    if (Date.now() - startedAt.getTime() > 89 * DAY_MS) return { result: 'unsupported' };
+
+    const calls = await plivoService.listCallsToNumber({
+      toNumber: phone,
+      windowStart: new Date(startedAt.getTime() - DAY_MS),
+      windowEnd: new Date(startedAt.getTime() + DAY_MS),
+      region: attempt.plivoRegion || plivoService.getRegionForPhone(phone)
+    });
+
+    const matches = calls.filter(call => {
+      if (!call.call_uuid) return false;
+      const times = this._parsePlivoTime(call.initiation_time || call.answer_time || call.end_time);
+      return times.some(t => Math.abs(t.getTime() - startedAt.getTime()) <= MATCH_WINDOW_MS);
+    });
+    const uniqueUuids = [...new Set(matches.map(call => call.call_uuid))];
+
+    if (uniqueUuids.length === 0) return { result: 'none' };
+    if (uniqueUuids.length > 1) return { result: 'ambiguous' };
+
+    const takenBy = await prisma.callAttempt.findFirst({
+      where: { plivoCallUuid: uniqueUuids[0], NOT: { id: attempt.id } },
+      select: { id: true }
+    });
+    if (takenBy) return { result: 'ambiguous' };
+    return { result: 'match', callUuid: uniqueUuids[0] };
+  }
+
+  /**
    * Fetch the Plivo CDR for one call attempt and store its billed cost.
    * Returns { status, retry } — retry=true means the caller should try again later.
    * When finalAttempt is true, a missing CDR is recorded instead of retried.
    */
   async fetchAndStoreCallCost(callAttemptId, { fetchAttempt = 1, finalAttempt = false } = {}) {
-    const attempt = await prisma.callAttempt.findUnique({ where: { id: callAttemptId } });
+    const attempt = await prisma.callAttempt.findUnique({
+      where: { id: callAttemptId },
+      include: { lead: { select: { phone: true } } }
+    });
     if (!attempt) {
       logger.warn(`Cost fetch skipped: CallAttempt [${callAttemptId}] not found.`);
       return { status: 'SKIPPED', retry: false };
@@ -50,10 +107,9 @@ class CostService {
       return { status: 'PENDING', retry: true };
     }
 
-    const callUuid = attempt.plivoCallUuid;
-    const isMockCall = !callUuid || callUuid.startsWith('PLIVO_MOCK_');
+    let callUuid = attempt.plivoCallUuid;
 
-    if (UNANSWERED_STATUSES.includes(attempt.status) || (isMockCall && !attempt.answeredAt)) {
+    if (UNANSWERED_STATUSES.includes(attempt.status) || (callUuid && callUuid.startsWith('PLIVO_MOCK_'))) {
       await this._saveCost(attempt.id, {
         costStatus: 'NOT_BILLED',
         plivoTotalAmount: 0,
@@ -62,9 +118,40 @@ class CostService {
       return { status: 'NOT_BILLED', retry: false };
     }
 
-    if (isMockCall) {
-      await this._saveCost(attempt.id, { costStatus: 'UNAVAILABLE' });
-      return { status: 'UNAVAILABLE', retry: false };
+    // No hangup webhook ever linked this attempt to a Plivo call: look the call
+    // up in Plivo by destination number and start time.
+    if (!callUuid) {
+      let lookup;
+      try {
+        lookup = await this._findPlivoCallForAttempt(attempt);
+      } catch (err) {
+        logger.warn(`Plivo call lookup failed for CallAttempt [${attempt.id}]`, { error: err.message, fetchAttempt });
+        if (isLastTry) {
+          await this._saveCost(attempt.id, { costStatus: 'UNAVAILABLE' });
+          return { status: 'UNAVAILABLE', retry: false };
+        }
+        return { status: 'PENDING', retry: true };
+      }
+
+      if (lookup.result === 'none') {
+        // Plivo has no call for this attempt, so nothing was connected or billed.
+        await this._saveCost(attempt.id, {
+          costStatus: 'NOT_BILLED',
+          plivoTotalAmount: 0,
+          plivoBilledDuration: 0,
+          duration: null
+        });
+        return { status: 'NOT_BILLED', retry: false };
+      }
+      if (lookup.result !== 'match') {
+        // Ambiguous or unsupported: never guess which call it was.
+        await this._saveCost(attempt.id, { costStatus: 'UNAVAILABLE' });
+        return { status: 'UNAVAILABLE', retry: false };
+      }
+
+      callUuid = lookup.callUuid;
+      await prisma.callAttempt.update({ where: { id: attempt.id }, data: { plivoCallUuid: callUuid } });
+      logger.info(`Linked CallAttempt [${attempt.id}] to Plivo call [${callUuid}] by number and time.`);
     }
 
     let cdr;
@@ -88,12 +175,15 @@ class CostService {
     }
 
     const billedDuration = cdr.billedDuration ?? cdr.billDuration ?? null;
+    // bill_duration is Plivo's exact connected time in seconds (not rounded).
+    const exactDuration = cdr.billDuration ?? cdr.callDuration ?? null;
     const status = cdr.totalAmount === 0 && !billedDuration ? 'NOT_BILLED' : 'FETCHED';
     await this._saveCost(attempt.id, {
       costStatus: status,
       plivoTotalAmount: cdr.totalAmount,
       plivoTotalRate: cdr.totalRate,
-      plivoBilledDuration: billedDuration
+      plivoBilledDuration: billedDuration,
+      ...(exactDuration !== null ? { duration: exactDuration } : {})
     });
 
     logger.info(`Stored Plivo call cost for CallAttempt [${attempt.id}]`, {
@@ -140,6 +230,7 @@ class CostService {
     const emptyBucket = () => ({
       calls: 0,
       callsWithBilling: 0,
+      callsWithDuration: 0,
       callMinutes: 0,
       billedCalls: 0,
       billedMinutes: 0,
@@ -174,9 +265,14 @@ class CostService {
       if (a.createdAt > leadBucket.lastCallAt) leadBucket.lastCallAt = a.createdAt;
       const buckets = [totals, byRegion[region], daily.get(day), leadBucket];
 
+      // Only real, provider-reported durations count; unknown stays out.
+      const hasDuration = a.duration !== null && a.duration !== undefined;
       buckets.forEach(b => {
         b.calls += 1;
-        b.callMinutes += (a.duration || 0) / 60;
+        if (hasDuration) {
+          b.callsWithDuration += 1;
+          b.callMinutes += a.duration / 60;
+        }
       });
 
       if (a.costStatus === 'FETCHED' || a.costStatus === 'NOT_BILLED') {
@@ -202,7 +298,7 @@ class CostService {
     const finish = (b) => ({
       ...b,
       callMinutes: round(b.callMinutes, 2),
-      avgMinutesPerCall: b.calls > 0 ? round(b.callMinutes / b.calls, 2) : 0,
+      avgMinutesPerCall: b.callsWithDuration > 0 ? round(b.callMinutes / b.callsWithDuration, 2) : 0,
       billingCoverage: b.calls > 0 ? round((b.callsWithBilling / b.calls) * 100, 1) : 0,
       billedMinutes: round(b.billedMinutes, 2),
       telephonyCost: round(b.telephonyCost),
