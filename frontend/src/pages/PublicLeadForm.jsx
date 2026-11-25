@@ -46,11 +46,11 @@ export default function PublicLeadForm() {
     let cancelled = false;
     const refreshCallStatus = async () => {
       try {
-        const res = await api.get(`/leads/${leadResult.id}`);
+        // Public, status-only endpoint (works without signing in).
+        const res = await api.get(`/public/leads/${leadResult.id}/call-status`);
         if (cancelled) return;
 
-        const attempt = res.data?.callAttempts?.[0];
-        const status = attempt?.status;
+        const status = res.data?.status;
         const statusStep = {
           QUEUED: 2,
           INITIATING: 3,

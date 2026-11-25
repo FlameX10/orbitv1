@@ -60,6 +60,23 @@ class LeadController {
     }
   }
 
+  /**
+   * Public, minimal call progress for the instant-call page: only the latest
+   * call status, never lead details or transcripts.
+   */
+  async publicCallStatus(req, res, next) {
+    try {
+      const lead = await leadService.getLeadById(req.params.id);
+      if (!lead) {
+        return res.status(404).json({ success: false, error: 'Not found' });
+      }
+      const status = lead.callAttempts?.[0]?.status || null;
+      res.json({ success: true, data: { status } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async update(req, res, next) {
     try {
       const { status } = req.body;

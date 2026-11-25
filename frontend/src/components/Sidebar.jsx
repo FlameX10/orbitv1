@@ -9,6 +9,8 @@ import {
   Activity,
   Wallet,
   PhoneOutgoing,
+  UserCog,
+  LogOut,
   X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -40,7 +42,8 @@ export const NAV_SECTIONS = [
     label: 'System',
     items: [
       { path: '/test-call', label: 'Live Call Studio', icon: PhoneOutgoing },
-      { path: '/settings', label: 'System Health', icon: Activity }
+      { path: '/settings', label: 'System Health', icon: Activity },
+      { path: '/users', label: 'Users', icon: UserCog, adminOnly: true }
     ]
   }
 ];
@@ -160,11 +163,10 @@ export function BrandMark({ size = 38 }) {
 }
 
 export default function Sidebar({ open, onClose }) {
-  const { user } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const { connected } = useSocket();
-  // Placeholder dev user names are shown as the client admin.
-  const rawName = user?.name || '';
-  const name = !rawName || /dev admin/i.test(rawName) ? `${CLIENT_NAME} Admin` : rawName;
+  const name = user?.name || user?.username || 'User';
+  const roleLabel = isAdmin ? 'Admin' : 'User';
 
   return (
     <>
@@ -204,7 +206,7 @@ export default function Sidebar({ open, onClose }) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-4 pt-2 pb-4 space-y-7 scroll-thin">
-          {NAV_SECTIONS.map(section => (
+          {NAV_SECTIONS.map(section => ({ ...section, items: section.items.filter(item => !item.adminOnly || isAdmin) })).map(section => (
             <div key={section.label}>
               <div className="eyebrow px-3 mb-2.5">{section.label}</div>
               <div className="space-y-1">
@@ -244,8 +246,11 @@ export default function Sidebar({ open, onClose }) {
             <ClientMark size={38} />
             <div className="min-w-0 flex-1 leading-tight">
               <div className="text-[13px] font-semibold truncate" style={{ color: 'var(--text)' }}>{name}</div>
-              <div className="text-[11.5px] faint truncate">{CLIENT_NAME} · Admin</div>
+              <div className="text-[11.5px] faint truncate">{CLIENT_NAME} · {roleLabel}</div>
             </div>
+            <button onClick={logout} className="btn btn-ghost btn-icon btn-sm" title="Sign out" aria-label="Sign out">
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
 
           <div className="text-center text-[10.5px] faint pt-1" style={{ letterSpacing: '0.04em' }}>

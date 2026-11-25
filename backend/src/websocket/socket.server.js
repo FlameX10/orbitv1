@@ -17,6 +17,19 @@ function initSocketServer(httpServer) {
     }
   });
 
+  // Only signed-in dashboard users receive realtime lead/call events.
+  io.use(async (socket, next) => {
+    try {
+      const { resolveUserFromToken } = require('../middleware/auth.middleware');
+      const user = await resolveUserFromToken(socket.handshake.auth?.token);
+      if (!user) return next(new Error('unauthorized'));
+      socket.data.user = user;
+      next();
+    } catch (err) {
+      next(new Error('unauthorized'));
+    }
+  });
+
   io.on('connection', (socket) => {
     logger.info(`WebSocket client connected [${socket.id}]`);
 

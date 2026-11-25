@@ -5,6 +5,7 @@ const logger = require('./config/logger');
 const { initSocketServer } = require('./websocket/socket.server');
 const { startWorkers } = require('./workers/queueWorker');
 const agentService = require('./services/agent.service');
+const userService = require('./services/user.service');
 
 const server = http.createServer(app);
 
@@ -32,6 +33,17 @@ server.listen(env.port, async () => {
   logger.info(` Default Timezone: [${env.defaultTimezone}]`);
   logger.info(` Max Concurrent Calls Limit: [${env.maxConcurrentCalls}]`);
   logger.info(`=======================================================`);
+
+  if (!process.env.JWT_SECRET) {
+    logger.warn('JWT_SECRET is not set. Set a long random value in the environment so login sessions are secure.');
+  }
+
+  try {
+    // Create / sync the admin login from ADMIN_USERNAME and ADMIN_PASSWORD
+    await userService.ensureAdminAccount();
+  } catch (err) {
+    logger.error('Admin account setup failed', { error: err.message });
+  }
 
   try {
     // Ensure default agent persona exists in database

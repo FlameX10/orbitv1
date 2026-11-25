@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
+import { useAuth } from './AuthContext';
 
 const SocketContext = createContext();
 
@@ -7,10 +8,17 @@ export function SocketProvider({ children }) {
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
   const [lastEvent, setLastEvent] = useState(null);
+  const { token } = useAuth();
 
   useEffect(() => {
+    // Realtime updates are for signed-in users only.
+    if (!token) {
+      setConnected(false);
+      return undefined;
+    }
     const backendUrl = import.meta.env.VITE_BACKEND_URL?.trim().replace(/\/+$/, '') || 'http://localhost:5000';
     const socketIo = io(backendUrl, {
+      auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: Infinity,
@@ -42,7 +50,7 @@ export function SocketProvider({ children }) {
     return () => {
       socketIo.disconnect();
     };
-  }, []);
+  }, [token]);
 
   return (
     <SocketContext.Provider value={{ socket, connected, lastEvent }}>

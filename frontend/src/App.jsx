@@ -19,6 +19,7 @@ import ClientCosting from './pages/ClientCosting';
 import PublicLeadForm from './pages/PublicLeadForm';
 import StandaloneInstantCall from './pages/StandaloneInstantCall';
 import Login from './pages/Login';
+import Users from './pages/Users';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -63,6 +64,7 @@ export default function App() {
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="costing" element={<ClientCosting />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="users" element={<Users />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />

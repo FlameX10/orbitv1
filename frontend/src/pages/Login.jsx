@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { Lock, User, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { BrandMark } from '../components/Sidebar';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -18,7 +18,7 @@ export default function Login() {
     setError(null);
 
     try {
-      await login(email, password);
+      await login(username.trim(), password);
       navigate('/');
     } catch (err) {
       setError(err.message);
@@ -26,6 +26,8 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  if (!authLoading && user) return <Navigate to="/" replace />;
 
   return (
     <div className="relative min-h-screen flex items-center justify-center p-5 overflow-hidden">
@@ -49,18 +51,21 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="field-label" htmlFor="login-email">Email</label>
+              <label className="field-label" htmlFor="login-username">Username</label>
               <div className="relative">
-                <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 faint" />
+                <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 faint" />
                 <input
-                  id="login-email"
-                  type="email"
+                  id="login-username"
+                  type="text"
                   required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
                   className="input input-icon"
-                  placeholder="you@company.com"
-                  autoComplete="email"
+                  placeholder="Your username"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  autoFocus
                 />
               </div>
             </div>

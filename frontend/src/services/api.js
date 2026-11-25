@@ -22,6 +22,11 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    // A signed-in session that the server no longer accepts: sign out.
+    const isLoginCall = String(error.config?.url || '').includes('/auth/login');
+    if (error.response?.status === 401 && !isLoginCall && localStorage.getItem('token')) {
+      window.dispatchEvent(new Event('auth:expired'));
+    }
     const message = error.response?.data?.error || error.message || 'An error occurred';
     return Promise.reject(new Error(message));
   }

@@ -72,5 +72,11 @@ module.exports = {
   maxCallAttempts: parseInt(process.env.MAX_CALL_ATTEMPTS || '3', 10),
   staleCallSeconds: parseInt(process.env.STALE_CALL_SECONDS || '1800', 10),
   defaultTimezone: process.env.DEFAULT_TIMEZONE || 'Asia/Kolkata',
-  jwtSecret: process.env.JWT_SECRET || 'fallback_secret_development_key_123'
+  jwtSecret: process.env.JWT_SECRET || 'fallback_secret_development_key_123',
+
+  // Admin account, created/kept in sync at startup. Never hard-code the password.
+  admin: {
+    username: (process.env.ADMIN_USERNAME || '').trim().toLowerCase(),
+    password: process.env.ADMIN_PASSWORD || ''
+  }
 };

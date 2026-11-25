@@ -1,62 +1,35 @@
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const prisma = require('../config/prisma');
 const env = require('../config/env');
+const userService = require('../services/user.service');
 
 class AuthController {
   async login(req, res, next) {
     try {
-      const { email, password } = req.body;
-      if (!email || !password) {
-        return res.status(400).json({ success: false, error: 'Email and password are required' });
+      // `username` is the login field; `email` is accepted for older clients.
+      const identifier = req.body.username || req.body.email;
+      const { password } = req.body;
+      if (!identifier || !password) {
+        return res.status(400).json({ success: false, error: 'Username and password are required' });
       }
 
-      let user = await prisma.user.findUnique({ where: { email } });
-      
-      // Auto-seed admin user in development if not present
-      if (!user && email === 'admin@vedron.dev' && password === 'admin123') {
-        const hash = await bcrypt.hash('admin123', 10);
-        user = await prisma.user.create({
-          data: {
-            email: 'admin@vedron.dev',
-            passwordHash: hash,
-            name: 'System Admin',
-            role: 'ADMIN'
-          }
-        });
-      }
-
+      const user = await userService.verifyCredentials(identifier, password);
       if (!user) {
-        return res.status(401).json({ success: false, error: 'Invalid email or password' });
-      }
-
-      const match = await bcrypt.compare(password, user.passwordHash);
-      if (!match && password !== 'admin123') {
-        return res.status(401).json({ success: false, error: 'Invalid email or password' });
+        return res.status(401).json({ success: false, error: 'Invalid username or password' });
       }
 
       const token = jwt.sign(
-        { id: user.id, email: user.email, role: user.role, name: user.name },
+        { id: user.id, username: user.username, role: user.role, name: user.name },
         env.jwtSecret,
         { expiresIn: '7d' }
       );
 
-      res.json({
-        success: true,
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role
-        }
-      });
+      res.json({ success: true, token, user: userService.toPublic(user) });
     } catch (err) {
       next(err);
     }
   }
 
-  async me(req, res, next) {
+  async me(req, res) {
     res.json({ success: true, user: req.user });
   }
 }

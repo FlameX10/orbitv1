@@ -68,10 +68,12 @@ enum MessageRole {
 
 model User {
   id           String   @id @default(uuid())
-  email        String   @unique
+  username     String?  @unique          // login name (stored lowercase)
+  email        String?  @unique
   passwordHash String
   name         String
-  role         Role     @default(ADMIN)
+  role         Role     @default(SALES_AGENT) // ADMIN can manage users; others use the app
+  isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

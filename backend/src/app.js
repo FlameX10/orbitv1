@@ -14,6 +14,9 @@ const analyticsRoutes = require('./routes/analytics.routes');
 const webhookRoutes = require('./routes/webhook.routes');
 const healthRoutes = require('./routes/health.routes');
 const webhookController = require('./controllers/webhook.controller');
+const publicRoutes = require('./routes/public.routes');
+const userRoutes = require('./routes/user.routes');
+const { authenticate } = require('./middleware/auth.middleware');
 
 const app = express();
 
@@ -61,14 +64,20 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api/', apiLimiter);
 
 // Register routes
+// Public: login, lead submission (inside lead routes), status-only progress,
+// provider webhooks (secret-protected), and the health check.
 app.use('/api/auth', authRoutes);
+app.use('/api/public', publicRoutes);
 app.use('/api/leads', leadRoutes);
-app.use('/api/calls', callRoutes);
-app.use('/api/callbacks', callbackRoutes);
-app.use('/api/agents', agentRoutes);
-app.use('/api/analytics', analyticsRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/health', healthRoutes);
+
+// Signed-in dashboard users only.
+app.use('/api/calls', authenticate, callRoutes);
+app.use('/api/callbacks', authenticate, callbackRoutes);
+app.use('/api/agents', authenticate, agentRoutes);
+app.use('/api/analytics', authenticate, analyticsRoutes);
+app.use('/api/users', userRoutes); // admin-only inside
 
 // Root route
 app.get('/', (req, res) => {
